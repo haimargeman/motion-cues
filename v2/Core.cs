@@ -50,12 +50,14 @@ namespace SteadyCuesV2
             }
             if (tilting) lastTilt=clock;
             bool handling=clock-lastTilt<0.5;
-            double tau=handling?0.28:gyro.HasValue?8.0:5.0;
+            double tau=handling?0.55:gyro.HasValue?8.0:5.0;
             gravity=gravity+(a-gravity)*(1-Math.Exp(-dt/tau));
             if (gravity.Length<3) { X=Y=Strength=0; Moving=false; return; }
             var linear=a-gravity;
             filtered=filtered+(linear-filtered)*(1-Math.Exp(-dt/0.11));
-            if (handling) { filtered=new V3(); X=Y=Strength=0; Moving=false; return; }
+            // Do not blank the signal while a 2-in-1 laptop is tilted: the user
+            // must still see sensor response. Faster gravity tracking already
+            // attenuates the purely rotational component.
             up=gravity.Unit;
             // Screen upright: the back faces the vehicle's forward direction.
             // Screen horizontal: top edge faces forward. User can correct orientation.
@@ -127,6 +129,8 @@ namespace SteadyCuesV2
     {
         public bool Found, Gyro;
         public bool Fresh, Moving;
+        public double RawX, RawY, RawZ;
+        public double GyroX, GyroY, GyroZ;
         public double Age=-1, Rate, X, Y, Strength;
         public long Samples;
         public string Error="";
