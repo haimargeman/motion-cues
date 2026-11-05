@@ -78,7 +78,7 @@ namespace SteadyCues
             UpdateTray();
 
             if (showWindow || firstRun) ShowWindow();
-            if (startDemo) ToggleDemo();
+            // Simulation is intentionally unavailable in this local-sensors-only edition.
         }
 
         // ------------------------------------------------------------------ sources
@@ -95,13 +95,14 @@ namespace SteadyCues
 
         public void ToggleDemo()
         {
-            if (_demo.Running) _demo.Stop();
+            return; // Use built-in physical sensors exclusively.
+            /* if (_demo.Running) _demo.Stop();
             else
             {
                 if (Settings.Mode == CueMode.Off) { Settings.Mode = _lastOnMode; Settings.NotifyChanged(); }
                 _demo.Start();
             }
-            UpdateTray();
+            UpdateTray(); */
         }
 
         private void ToggleOnOff()
@@ -133,12 +134,11 @@ namespace SteadyCues
             _auto = new ToolStripMenuItem("אוטומטי", null, delegate { SetMode(CueMode.Automatic); });
             _always = new ToolStripMenuItem("מוצג תמיד", null, delegate { SetMode(CueMode.AlwaysOn); });
             _off = new ToolStripMenuItem("כבוי", null, delegate { SetMode(CueMode.Off); }) { ShortcutKeyDisplayString = "Ctrl+Alt+M" };
-            _demoItem = new ToolStripMenuItem("הדמיית נסיעה", null, delegate { ToggleDemo(); });
+            _demoItem = new ToolStripMenuItem("הדמיית נסיעה") { Enabled = false };
             menu.Items.AddRange(new ToolStripItem[]
             {
                 _statusItem, new ToolStripSeparator(), _auto, _always, _off, new ToolStripSeparator(),
                 
-                _demoItem,
                 new ToolStripMenuItem("פתח את SteadyCues", null, delegate { ShowWindow(); }) { Font = new Font(menu.Font, FontStyle.Bold) },
                 new ToolStripSeparator(),
                 new ToolStripMenuItem("יציאה", null, delegate { Quit(); }),
