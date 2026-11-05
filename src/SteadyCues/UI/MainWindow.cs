@@ -619,7 +619,8 @@ namespace SteadyCues.UI
             string state;
             if (_s.Mode == CueMode.Off) state = "הנקודות כבויות";
             else if (demo) state = "הדמיית נסיעה פועלת";
-            else if (snap.Source == ActiveSource.None) state = "ממתין לחיישני תנועה";
+            else if (!builtIn) state = "לא זוהה מד תאוצה מובנה";
+            else if (!receiving) state = "החיישן זוהה, אך אינו שולח נתונים";
             else if (_s.Mode == CueMode.AlwaysOn || snap.Moving) state = snap.Moving ? "בתנועה · הנקודות מוצגות" : "הנקודות מוצגות";
             else state = "מוכן · הנקודות יוצגו בזמן תנועה";
             _statusTitle.Text = state;
@@ -627,7 +628,14 @@ namespace SteadyCues.UI
 
             string source = MotionHub.Describe(snap.Source);
             if (snap.Source == ActiveSource.BuiltIn) source = "מד תאוצה וגירוסקופ מובנים";
-            _statusDetail.Text = snap.Source == ActiveSource.None ? "לא זוהה מד תאוצה פעיל במחשב. בדקו את מנהל ההתקנים." :  "מקור תנועה: " + source;
+            double sensorAge = _hub.GetAge(ActiveSource.BuiltIn);
+            bool receiving = builtIn && snap.Fresh && _hub.GetSampleCount(ActiveSource.BuiltIn) > 0;
+            double sampleRate = _hub.GetRate(ActiveSource.BuiltIn);
+            _statusDetail.Text = !builtIn
+                ? "Windows לא זיהה מד תאוצה מובנה. בדקו את מנהל ההתקנים."
+                : !receiving
+                    ? (sensorAge < 0 ? "החיישן זוהה, אך עדיין לא התקבלו קריאות תנועה." : "אין קריאות עדכניות מהחיישן (לפני " + sensorAge.ToString("0.0") + " שניות).")
+                    : "קריאות בזמן אמת: " + sampleRate.ToString("0") + " לשנייה | X: " + snap.Fx.ToString("+0.00;-0.00;0.00") + " | Y: " + snap.Fy.ToString("+0.00;-0.00;0.00") + " m/s²";
 
             // Which sensor card to show
             SensorView view;
@@ -636,9 +644,11 @@ namespace SteadyCues.UI
             switch (view)
             {
                 case SensorView.BuiltIn:
-                    _sensorTitle.Text = "✓  זוהה מד תאוצה מובנה";
-                    _sensorTitle.ForeColor = Theme.Text;
-                    _sensorText.Text = "התוכנה משתמשת בחיישן המובנה במחשב, ללא חיבור לטלפון או לרשת.";
+                    _sensorTitle.Text = receiving ? "✓  החיישן פעיל ושולח נתונים" : "⚠  החיישן זוהה אך אין נתונים חיים";
+                    _sensorTitle.ForeColor = receiving ? Theme.Ok : Theme.Warn;
+                    _sensorText.Text = receiving
+                        ? _hub.GetStatus(ActiveSource.BuiltIn) + ". הניעו את המחשב בעדינות ובדקו שהערכים X ו־Y משתנים למעלה."
+                        : "לא התקבלו נתונים עדכניים מהחיישן. בדקו מנהלי התקנים, מצב טאבלט וחסימת גישה לחיישנים ב־Windows.";
                     _sensorLink.Text = "";
                     break;
                 case SensorView.BuiltInMissing:
@@ -680,7 +690,7 @@ namespace SteadyCues.UI
             parts.Add( "המחשב: " + (builtIn ? "מד התאוצה זמין" : "לא נמצא מד תאוצה"));
             
             
-            _sourceHelp.Text = "רק חיישני המחשב פעילים. " + (builtIn ? "מד התאוצה זמין." : "לא זוהה מד תאוצה נגיש ב־Windows.");
+            _sourceHelp.Text = "מקור תנועה: חיישנים מקומיים בלבד. " + (receiving ? "קריאות נוכחיות: " + sampleRate.ToString("0") + "/שנייה. " + _hub.GetStatus(ActiveSource.BuiltIn) : builtIn ? "החיישן זוהה אך לא התקבל מידע בזמן אמת." : "לא זוהה מד תאוצה נגיש ב־Windows.");
 
             if (view != _view) { _view = view; LayoutHome(); LayoutSettings(); }
             else
