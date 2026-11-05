@@ -14,18 +14,22 @@ namespace SteadyCuesV2
         static readonly Color KeyColor=Color.FromArgb(255,0,255);
         readonly SensorService sensors;
         readonly AppConfig config;
+        readonly bool leftEdge;
         readonly Timer timer=new Timer();
         double ox,oy,vx,vy,visibility,holdUntil;
         readonly System.Diagnostics.Stopwatch clock=System.Diagnostics.Stopwatch.StartNew();
         double lastTime;
         bool configured;
 
-        public CueOverlay(Screen screen, SensorService s, AppConfig c)
+        public CueOverlay(Screen screen, SensorService s, AppConfig c, bool left)
         {
-            sensors=s;config=c;
+            sensors=s;config=c;leftEdge=left;
             FormBorderStyle=FormBorderStyle.None;
             StartPosition=FormStartPosition.Manual;
-            Bounds=screen.Bounds;
+            // Two narrow edge strips instead of a full-screen transparent window.
+            // Painting cost is proportional to strip area, not total display area.
+            int strip=Math.Max(190,Math.Min(330,screen.Bounds.Width/4));
+            Bounds=new Rectangle(left?screen.Bounds.Left:screen.Bounds.Right-strip,screen.Bounds.Top,strip,screen.Bounds.Height);
             ShowInTaskbar=false;TopMost=true;BackColor=KeyColor;TransparencyKey=KeyColor;
             SetStyle(ControlStyles.AllPaintingInWmPaint|ControlStyles.UserPaint|ControlStyles.OptimizedDoubleBuffer,true);
             timer.Interval=16;
@@ -83,10 +87,8 @@ namespace SteadyCuesV2
                 for(int i=1;i<=rows;i++) {
                     double y=i*step+oy;
                     for(int col=0;col<columns;col++){
-                        double xLeft=edge+col*step*.57+ox;
-                        double xRight=Width-edge-col*step*.57+ox;
-                        PaintDot(g,brush,outline,xLeft,y,radius);
-                        PaintDot(g,brush,outline,xRight,y,radius);
+                        double x=leftEdge?edge+col*step*.57+ox:Width-edge-col*step*.57+ox;
+                        PaintDot(g,brush,outline,x,y,radius);
                     }
                 }
             }
@@ -122,9 +124,11 @@ namespace SteadyCuesV2
         {
             foreach(var screen in Screen.AllScreens) {
                 if(!screen.Primary)continue;
-                var overlay=new CueOverlay(screen,sensors,settings);
-                windows.Add(overlay);
-                overlay.Show();
+                for(int edge=0;edge<2;edge++) {
+                    var overlay=new CueOverlay(screen,sensors,settings,edge==0);
+                    windows.Add(overlay);
+                    overlay.Show();
+                }
             }
         }
         public void CapturePolicy(){foreach(var w in windows)w.UpdateCapturePolicy();}
