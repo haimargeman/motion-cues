@@ -20,6 +20,8 @@ namespace SteadyCuesV2
         readonly System.Diagnostics.Stopwatch clock=System.Diagnostics.Stopwatch.StartNew();
         double lastTime;
         bool configured;
+        double visualTestUntil;
+        public void BeginVisualTest() { visualTestUntil=clock.Elapsed.TotalSeconds+4.0; }
 
         public CueOverlay(Screen screen, SensorService s, AppConfig c, bool left)
         {
@@ -50,15 +52,17 @@ namespace SteadyCuesV2
             var data=sensors.Snapshot();
             if(data.Moving)holdUntil=now+3.0;
             bool live=data.Fresh && data.Samples>0;
-            bool visible=config.Mode==1 || (config.Mode==0 && live && now<holdUntil);
-            if(config.Mode==2 || !live) visible=false;
+            bool testing=now<visualTestUntil;
+            bool visible=testing || config.Mode==1 || (config.Mode==0 && live && now<holdUntil);
+            if(config.Mode==2 && !testing) visible=false;
             double target=visible?1:0;
             double fadeSpeed=target>visibility?dt/.22:dt/.50;
             visibility+=Math.Max(-fadeSpeed,Math.Min(fadeSpeed,target-visibility));
             // Accelerations are m/s2; 2 m/s2 = about 90 px by default.
             // Sensitivity is explicit, not coupled to automatic visibility.
-            double tx=live?Math.Tanh(data.X*config.Gain/4.0)*110:0;
-            double ty=live?Math.Tanh(data.Y*config.Gain/4.0)*110:0;
+            // Controlled visual-only test is never fed to the sensor engine.
+            double tx=testing?90*Math.Sin(now*3.2):(live?Math.Tanh(data.X*config.Gain/4.0)*135:0);
+            double ty=testing?65*Math.Cos(now*2.5):(live?Math.Tanh(data.Y*config.Gain/4.0)*135:0);
             double w=2*Math.PI*2.7,damping=.89;
             int steps=4;double h=dt/steps;
             for(int i=0;i<steps;i++){
@@ -81,8 +85,8 @@ namespace SteadyCuesV2
             double radius=config.DotSize*Math.Max(1,DeviceDpi/96.0);
             int columns=2; double edge=26*Math.Max(1,DeviceDpi/96.0);
             int alpha=(int)(Math.Max(0,Math.Min(1,visibility*config.Opacity))*220);
-            using(var brush=new SolidBrush(Color.FromArgb(alpha,246,250,249)))
-            using(var outline=new Pen(Color.FromArgb(alpha,28,39,46),1.2f))
+            using(var brush=new SolidBrush(Color.FromArgb(alpha,4,4,6)))
+            using(var outline=new Pen(Color.FromArgb(alpha,4,4,6),1.2f))
             {
                 for(int i=1;i<=rows;i++) {
                     double y=i*step+oy;
@@ -132,6 +136,7 @@ namespace SteadyCuesV2
             }
         }
         public void CapturePolicy(){foreach(var w in windows)w.UpdateCapturePolicy();}
+        public void BeginVisualTest(){foreach(var w in windows)w.BeginVisualTest();}
         public void Dispose(){foreach(var w in windows)w.Close();windows.Clear();}
     }
 }
