@@ -1,0 +1,76 @@
+name: SteadyCues V2 - Rebuilt Windows App
+
+on:
+  push:
+    branches: [feature/steadycues-rebuild-v2, main]
+    paths:
+      - 'v2/**'
+      - '.github/workflows/rebuild-v2.yml'
+  pull_request:
+    paths:
+      - 'v2/**'
+      - '.github/workflows/rebuild-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  rebuild:
+    name: Build and test independent V2 app
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify isolated local-only application
+        shell: pwsh
+        run: |
+          $sources=Get-ChildItem v2 -Filter '*.cs' -File
+          if ($sources.Count -lt 5) { throw 'Missing rebuilt app sources' }
+          if (Select-String -Path $sources.FullName -Pattern 'PhoneBridge|LocationSource|HttpListener|TcpListener|WebRequest|GetGeoposition') {
+            throw 'Unexpected external source in V2 app'
+          }
+      - name: Compile and execute motion engine tests; build app
+        shell: pwsh
+        run: ./v2/build.ps1
+      - name: Smoke test desktop startup
+        shell: pwsh
+        run: |
+          $p=$null
+          try {
+            $p=Start-Process (Resolve-Path 'dist-v2/SteadyCues2.exe') -PassThru
+            Start-Sleep -Seconds 4
+            $p.Refresh()
+            if ($p.HasExited) { throw "SteadyCues2 exited unexpectedly (exit code $($p.ExitCode))." }
+            Write-Host 'Desktop process remained alive; startup smoke test passed.'
+          } finally {
+            if ($p -and -not $p.HasExited) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
+          }
+      - name: Upload rebuilt app
+        uses: actions/upload-artifact@v4
+        with:
+          name: SteadyCues-V2-Rebuilt-Windows
+          path: |
+            dist-v2/SteadyCues2.exe
+            dist-v2/SteadyCues2.exe.sha256
+          if-no-files-found: error
+          retention-days: 30
+      - name: Publish beta release from main after successful tests
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag="v2.0.0-preview.$env:GITHUB_RUN_NUMBER"
+          $notes=@'
+          ## SteadyCues 2 — בנייה מחדש, מהדורת ניסיון
+
+          תוכנת Windows חדשה עם מנוע עיבוד תנועה, שכבת נקודות וממשק עברי שנבנו מחדש.
+
+          - מד תאוצה מקומי וגירוסקופ אופציונלי בלבד
+          - קריאות חיישן חיות וזיהוי בעיות אמינות
+          - תזוזת נקודות חזקה יותר עם שליטה ברגישות ובכיוון
+          - ללא טלפון, GPS, שרת, התקנה אוטומטית או שינוי חומת אש
+
+          **מהדורת Preview:** הבנייה נבדקה ב-Windows והמנוע עבר בדיקות אוטומטיות, אך תפקוד החיישנים והתצוגה דורש בדיקה על מחשב היעד. יש לסגור את התוכנה הישנה לפני ההפעלה.
+          '@
+          gh release create $tag dist-v2/SteadyCues2.exe dist-v2/SteadyCues2.exe.sha256 --target $env:GITHUB_SHA --prerelease --title "SteadyCues 2 Preview $tag" --notes $notes
