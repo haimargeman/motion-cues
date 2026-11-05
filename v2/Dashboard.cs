@@ -78,7 +78,7 @@ namespace SteadyCuesV2
             previewCard=pc.Item1;
             var previewGrid=pc.Item2;
             preview=new Preview(sensors,config) { Dock=DockStyle.Top,Height=132,
-                BackColor=Color.FromArgb(23,31,41),Margin=new Padding(0,5,0,3) };
+                BackColor=Color.FromArgb(230,236,240),Margin=new Padding(0,5,0,3) };
             AddLine(previewGrid,preview);
             displayInfo=T("הדמיה מקדימה של נתוני החיישן. אם אין נתונים, הנקודות לא ינועו.",9,false,Secondary);
             AddLine(previewGrid,displayInfo);
@@ -295,6 +295,7 @@ namespace SteadyCuesV2
         public Preview(SensorService s,AppConfig c)
         {
             sensors=s;config=c;
+            BackColor=Color.FromArgb(230,236,240);
             SetStyle(ControlStyles.OptimizedDoubleBuffer|ControlStyles.UserPaint|
                 ControlStyles.AllPaintingInWmPaint,true);
         }
