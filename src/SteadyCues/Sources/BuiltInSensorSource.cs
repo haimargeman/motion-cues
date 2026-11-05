@@ -65,6 +65,9 @@ namespace SteadyCues
                 }
             }
             catch (Exception) { _gyro = null; } // optional: tilt detection falls back to accelerometer only
+            _hub.SetPresent(ActiveSource.BuiltIn, true, _gyro != null
+                ? "Accelerometer and gyroscope connected; waiting for samples"
+                : "Accelerometer connected; no gyroscope available; waiting for samples");
         }
 
         private void OnGyro(Gyrometer sender, GyrometerReadingChangedEventArgs e)

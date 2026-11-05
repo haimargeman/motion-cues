@@ -137,6 +137,19 @@ namespace SteadyCues.Tests
             }
         }
 
+        public static void SensorMustProduceActualReadings()
+        {
+            var hub = new MotionHub(new Settings());
+            Assert.True(hub.GetSampleCount(ActiveSource.BuiltIn) == 0, "no initial samples");
+            Assert.True(hub.GetAge(ActiveSource.BuiltIn) < 0, "no sample age before first reading");
+            hub.SetPresent(ActiveSource.BuiltIn, true, "device detected");
+            Assert.True(!hub.IsFresh(ActiveSource.BuiltIn, 1.0), "device presence is not a live reading");
+            hub.Push(ActiveSource.BuiltIn, 0.3, -0.5, 0.016, false);
+            Assert.True(hub.GetSampleCount(ActiveSource.BuiltIn) == 1, "live sample counter");
+            Assert.True(hub.IsFresh(ActiveSource.BuiltIn, 1.0), "fresh sample recognized");
+            Assert.True(hub.GetAge(ActiveSource.BuiltIn) >= 0, "age available after first sample");
+        }
+
         public static void HubRejectsExternalMotionAndAcceptsLocalSensors()
         {
             var s = new Settings();
