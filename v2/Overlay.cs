@@ -71,8 +71,11 @@ namespace SteadyCuesV2
                 ox+=vx*h;oy+=vy*h;
             }
             if(!configured) { configured=true; try { Win32.SetWindowDisplayAffinity(Handle, config.CaptureSafe?0x11u:0u); }catch{} }
-            if(visibility>.002)Invalidate();
-            else Invalidate();
+            // Layered-window opacity is applied to fully black pixels, not
+            // alpha-blended against the chroma-key background (which caused halos).
+            double windowAlpha=Math.Max(0.01,Math.Min(1.0,visibility*config.Opacity));
+            if(Math.Abs(Opacity-windowAlpha)>0.005)Opacity=windowAlpha;
+            Invalidate();
         }
         protected override void OnPaintBackground(PaintEventArgs e) { e.Graphics.Clear(KeyColor); }
         protected override void OnPaint(PaintEventArgs e)
@@ -84,9 +87,8 @@ namespace SteadyCuesV2
             double step=(double)Height/(rows+1);
             double radius=config.DotSize*Math.Max(1,DeviceDpi/96.0);
             int columns=2; double edge=26*Math.Max(1,DeviceDpi/96.0);
-            int alpha=(int)(Math.Max(0,Math.Min(1,visibility*config.Opacity))*220);
-            using(var brush=new SolidBrush(Color.FromArgb(alpha,4,4,6)))
-            using(var outline=new Pen(Color.FromArgb(alpha,4,4,6),1.2f))
+            using(var brush=new SolidBrush(Color.Black))
+            using(var outline=new Pen(Color.Black,1.2f))
             {
                 for(int i=1;i<=rows;i++) {
                     double y=i*step+oy;
