@@ -62,7 +62,7 @@ namespace SteadyCuesV2
                 vy+=(w*w*(ty-oy)-2*damping*w*vy)*h;
                 ox+=vx*h;oy+=vy*h;
             }
-            if(!configured) { configured=true; try { Win32.SetWindowDisplayAffinity(Handle, config.CaptureSafe?0x11:0); }catch{} }
+            if(!configured) { configured=true; try { Win32.SetWindowDisplayAffinity(Handle, config.CaptureSafe?0x11u:0u); }catch{} }
             if(visibility>.002)Invalidate();
             else Invalidate();
         }
@@ -100,7 +100,7 @@ namespace SteadyCuesV2
         }
         public void UpdateCapturePolicy()
         {
-            try{Win32.SetWindowDisplayAffinity(Handle,config.CaptureSafe?0x11:0);}catch{}
+            try{Win32.SetWindowDisplayAffinity(Handle,config.CaptureSafe?0x11u:0u);}catch{}
         }
         protected override void Dispose(bool disposing)
         {
