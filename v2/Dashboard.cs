@@ -43,7 +43,7 @@ namespace SteadyCuesV2
             var sub=Label("ממשק תנועה מקומי • ללא טלפון • ללא רשת • עברית מלאה",10,FontStyle.Regular,Muted,24);
             sub.Dock=DockStyle.Top;
             top.Controls.Add(sub);top.Controls.Add(headline);
-            Controls.Add(top);
+            // Docked header is added after the filling body to keep the title visible.
 
             body=new FlowLayoutPanel {
                 Dock=DockStyle.Fill,FlowDirection=FlowDirection.TopDown,
@@ -51,7 +51,8 @@ namespace SteadyCuesV2
                 BackColor=Bg
             };
             Controls.Add(body);
-            body.BringToFront();
+            Controls.Add(top);
+            top.BringToFront();
             body.SizeChanged+=(s,e)=>ResizeCards();
 
             cardStatus=Card(148);
