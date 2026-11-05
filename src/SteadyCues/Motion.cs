@@ -216,13 +216,7 @@ namespace SteadyCues
         private ActiveSource ResolveLocked(double now)
         {
             if (_demo) return ActiveSource.Demo;
-            switch (_settings.Source)
-            {
-                case SourceKind.BuiltInSensor: return ActiveSource.BuiltIn;
-                case SourceKind.Phone: return ActiveSource.Phone;
-                case SourceKind.Location: return ActiveSource.Location;
-            }
-            if (now - _ch[(int)ActiveSource.Phone].LastT < 3) return ActiveSource.Phone;
+            // Hard policy: only the computer's own accelerometer/gyroscope.
             if (_ch[(int)ActiveSource.BuiltIn].Present) return ActiveSource.BuiltIn;
             return ActiveSource.None;
         }
