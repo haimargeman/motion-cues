@@ -20,6 +20,7 @@ namespace SteadyCuesV2
         int count;
         double rate;
         long samples;
+        V3 rawAcceleration;
         bool found, hasGyro;
         string error="";
         public SensorService() { onAcc=Receive; onGyro=ReceiveGyro; }
@@ -64,6 +65,7 @@ namespace SteadyCuesV2
                 lock(gate) {
                     double dt=lastAcc>=0?now-lastAcc:0.016;
                     V3? w=now-lastGyro<0.3?angularVelocity:(V3?)null;
+                    rawAcceleration=a;
                     engine.Process(a,w,dt);
                     lastAcc=now;
                     samples++;
@@ -85,6 +87,8 @@ namespace SteadyCuesV2
                     Rate=fresh?rate:0,Samples=samples,
                     Moving=fresh&&engine.Moving,
                     X=fresh?engine.X:0,Y=fresh?engine.Y:0,
+                    RawX=rawAcceleration.X,RawY=rawAcceleration.Y,RawZ=rawAcceleration.Z,
+                    GyroX=angularVelocity.X,GyroY=angularVelocity.Y,GyroZ=angularVelocity.Z,
                     Strength=fresh?engine.Strength:0,Error=error
                 };
             }
