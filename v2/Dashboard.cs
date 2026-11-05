@@ -5,241 +5,315 @@ using System.Windows.Forms;
 
 namespace SteadyCuesV2
 {
-    // New dashboard: native Hebrew / RTL, responsive containers and live diagnostics.
+    // Entire dashboard uses managed layouts and autosized wrapped labels.
+    // No fixed coordinates: RTL, high DPI, and long error messages remain readable.
     internal sealed class Dashboard : Form
     {
         readonly SensorService sensors;
         readonly AppConfig config;
         readonly OverlayManager overlays;
-        readonly Timer refresh=new Timer { Interval=120 };
+        readonly Timer refresh = new Timer { Interval = 150 };
         readonly FlowLayoutPanel body;
-        readonly Label headline,statTitle,statDetail,vector,hardware,helper,level;
+        readonly Label state, status, vector, raw, technical, explanation, displayInfo;
         readonly Preview preview;
-        readonly ComboBox mode,direction;
-        readonly TrackBar sensitivity,size,number,opacity;
-        readonly Label gainValue,sizeValue,numberValue,opacityValue;
-        readonly Panel cardStatus,cardPreview,cardOptions,cardTech;
-        static readonly Color Bg=Color.FromArgb(18,23,30);
-        static readonly Color PanelColor=Color.FromArgb(29,37,48);
-        static readonly Color Fore=Color.FromArgb(237,243,246);
-        static readonly Color Muted=Color.FromArgb(167,184,195);
-        static readonly Color Accent=Color.FromArgb(117,207,190);
+        readonly ComboBox mode, direction;
+        readonly TrackBar gain, dots, count, opacity;
+        readonly Label gainLabel, dotsLabel, countLabel, opacityLabel;
+        readonly Button visualTest;
+        readonly Panel statusCard, previewCard, settingsCard, hardwareCard, advancedCard;
+        const int Spacing = 14;
+        static readonly Color Background = Color.FromArgb(18, 23, 30);
+        static readonly Color Surface = Color.FromArgb(31, 39, 49);
+        static readonly Color TextColor = Color.FromArgb(240, 244, 246);
+        static readonly Color Secondary = Color.FromArgb(184, 200, 211);
+        static readonly Color Accent = Color.FromArgb(123, 217, 197);
+        static readonly Color Warning = Color.FromArgb(251, 188, 124);
 
-        public Dashboard(SensorService sensor,AppConfig settings,OverlayManager ov)
+        public Dashboard(SensorService s, AppConfig c, OverlayManager o)
         {
-            sensors=sensor;config=settings;overlays=ov;
-            Text="SteadyCues 2 — חיישנים מובנים";
-            MinimumSize=new Size(790,640);
-            Size=new Size(970,755);
+            sensors=s; config=c; overlays=o;
+            Text="SteadyCues 2 • תנועת נסיעה";
             StartPosition=FormStartPosition.CenterScreen;
-            BackColor=Bg;ForeColor=Fore;
-            Font=new Font("Segoe UI",10);
+            MinimumSize=new Size(620, 560);
+            Size=new Size(900, 780);
+            BackColor=Background;
+            ForeColor=TextColor;
+            Font=new Font("Segoe UI", 10f);
             RightToLeft=RightToLeft.Yes;
             RightToLeftLayout=true;
             AutoScaleMode=AutoScaleMode.Dpi;
-            var top=new Panel{Height=98,Dock=DockStyle.Top,BackColor=Bg,Padding=new Padding(24,14,24,8)};
-            headline=Label("SteadyCues 2",22,FontStyle.Bold,Fore,42);
-            headline.Dock=DockStyle.Top;
-            var sub=Label("ממשק תנועה מקומי • ללא טלפון • ללא רשת • עברית מלאה",10,FontStyle.Regular,Muted,24);
-            sub.Dock=DockStyle.Top;
-            top.Controls.Add(sub);top.Controls.Add(headline);
-            // Docked header is added after the filling body to keep the title visible.
+
+            var heading = new TableLayoutPanel {
+                Dock=DockStyle.Top, AutoSize=true, AutoSizeMode=AutoSizeMode.GrowAndShrink,
+                ColumnCount=1, RowCount=2,
+                BackColor=Background, Padding=new Padding(24,17,24,13)
+            };
+            heading.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            heading.Controls.Add(T("SteadyCues 2", 21, true, TextColor),0,0);
+            heading.Controls.Add(T("מהדורה מקומית • חיישני המחשב בלבד • ללא חיבור לטלפון",10,false,Secondary),0,1);
 
             body=new FlowLayoutPanel {
-                Dock=DockStyle.Fill,FlowDirection=FlowDirection.TopDown,
-                WrapContents=false,AutoScroll=true,Padding=new Padding(22,8,22,22),
-                BackColor=Bg
+                Dock=DockStyle.Fill, FlowDirection=FlowDirection.TopDown,
+                WrapContents=false, AutoScroll=true, BackColor=Background,
+                Padding=new Padding(18,8,18,26)
             };
             Controls.Add(body);
-            Controls.Add(top);
-            top.BringToFront();
-            body.SizeChanged+=(s,e)=>ResizeCards();
+            Controls.Add(heading);
+            heading.BringToFront();
 
-            cardStatus=Card(148);
-            statTitle=Label("בודק חיישנים...",16,FontStyle.Bold,Fore,32);
-            statDetail=Label("",10,FontStyle.Regular,Muted,42);
-            vector=Label("",10,FontStyle.Regular,Accent,32);
-            statTitle.Location=new Point(18,14);statTitle.Anchor=AnchorStyles.Top|AnchorStyles.Left|AnchorStyles.Right;
-            statDetail.Location=new Point(18,53);statDetail.Anchor=statTitle.Anchor;
-            vector.Location=new Point(18,105);vector.Anchor=statTitle.Anchor;
-            cardStatus.Controls.Add(statTitle);cardStatus.Controls.Add(statDetail);cardStatus.Controls.Add(vector);
-            body.Controls.Add(cardStatus);
+            var sc=Section("מצב התנועה");
+            statusCard=sc.Item1;
+            var statusGrid=sc.Item2;
+            state=T("מאתר חיישנים...",16,true,TextColor);
+            status=T("",10,false,Secondary);
+            vector=T("",10,true,Accent);
+            raw=T("",9,false,Secondary);
+            AddLine(statusGrid,state);
+            AddLine(statusGrid,status);
+            AddLine(statusGrid,vector);
+            AddLine(statusGrid,raw);
+            body.Controls.Add(statusCard);
 
-            cardPreview=Card(185);
-            var previewTitle=Label("תצוגה חיה של תנועת הנקודות",12,FontStyle.Bold,Fore,28);
-            previewTitle.SetBounds(18,10,600,28);
-            preview=new Preview(sensors,config) { Left=18,Top=42,Height=126,Anchor=AnchorStyles.Left|AnchorStyles.Top|AnchorStyles.Right };
-            cardPreview.Controls.Add(previewTitle);cardPreview.Controls.Add(preview);
-            body.Controls.Add(cardPreview);
+            var pc=Section("תצוגה מקדימה");
+            previewCard=pc.Item1;
+            var previewGrid=pc.Item2;
+            preview=new Preview(sensors,config) { Dock=DockStyle.Top,Height=132,
+                BackColor=Color.FromArgb(23,31,41),Margin=new Padding(0,5,0,3) };
+            AddLine(previewGrid,preview);
+            displayInfo=T("הדמיה מקדימה של נתוני החיישן. אם אין נתונים, הנקודות לא ינועו.",9,false,Secondary);
+            AddLine(previewGrid,displayInfo);
+            visualTest=ActionButton("בדיקת ציור – הזזת נקודות ל־4 שניות");
+            visualTest.Click+=(sender,args)=>{
+                overlays.BeginVisualTest();
+                displayInfo.Text="בדיקת הציור פועלת למשך ארבע שניות. זו בדיקה חזותית בלבד, לא נתוני החיישן.";
+            };
+            AddLine(previewGrid,visualTest);
+            body.Controls.Add(previewCard);
 
-            cardOptions=Card(250);
-            var optTitle=Label("התאמה אישית",12,FontStyle.Bold,Fore,29);
-            optTitle.SetBounds(18,10,600,29);cardOptions.Controls.Add(optTitle);
-            mode=MakeCombo(new[]{"אוטומטי — מוצג בעת תנועה","מוצג תמיד — מומלץ לבדיקה","כבוי"},config.Mode);
-            direction=MakeCombo(new[]{"כיוון רגיל","סיבוב 90°","כיוון הפוך (180°)","סיבוב 270°"},config.Direction);
-            var modeLabel=Label("מצב הצגה",10,FontStyle.Regular,Muted,25);
-            var directionLabel=Label("כיוון המחשב ביחס לרכב",10,FontStyle.Regular,Muted,25);
-            cardOptions.Controls.Add(modeLabel);cardOptions.Controls.Add(mode);
-            cardOptions.Controls.Add(directionLabel);cardOptions.Controls.Add(direction);
-            sensitivity=MakeSlider(40,500,(int)Math.Round(config.Gain*100));
-            gainValue=Label("",10,FontStyle.Bold,Accent,24);
-            cardOptions.Controls.Add(sensitivity);cardOptions.Controls.Add(gainValue);
-            var sensitivityLabel=Label("עוצמת תגובת הנקודות לתנועה",10,FontStyle.Regular,Muted,25);
-            cardOptions.Controls.Add(sensitivityLabel);
-            mode.SelectedIndexChanged+=(s,e)=>{config.Mode=mode.SelectedIndex;config.Save();};
-            direction.SelectedIndexChanged+=(s,e)=>{config.Direction=direction.SelectedIndex;sensors.SetDirection(config.Direction);config.Save();};
-            sensitivity.Scroll+=(s,e)=>{config.Gain=sensitivity.Value/100.0;gainValue.Text=config.Gain.ToString("0.00")+"×";config.Save();};
-            gainValue.Text=config.Gain.ToString("0.00")+"×";
-            // Explicit positions avoid nested auto-layout changes and unwanted text overlap.
-            modeLabel.SetBounds(18,49,190,25);mode.SetBounds(18,78,272,33);
-            directionLabel.SetBounds(325,49,240,25);direction.SetBounds(325,78,300,33);
-            sensitivityLabel.SetBounds(18,130,400,27);
-            sensitivity.SetBounds(18,157,440,42);gainValue.SetBounds(480,163,120,30);
-            var calibrate=MakeButton("איפוס וכיול מחדש");
-            calibrate.SetBounds(18,207,200,35);cardOptions.Controls.Add(calibrate);
-            calibrate.Click+=(s,e)=>{sensors.Calibrate();MessageBox.Show(this,"הכיול אופס. השאירו את המחשב יציב לרגע.","כיול");};
-            body.Controls.Add(cardOptions);
+            var oc=Section("הגדרות תנועה");
+            settingsCard=oc.Item1;
+            var opt=oc.Item2;
+            mode=Choice(new[]{"מוצג אוטומטית בעת תנועה","מוצג תמיד","כבוי"},config.Mode);
+            direction=Choice(new[]{"כיוון רגיל","90° ימינה","180° הפוך","90° שמאלה"},config.Direction);
+            AddLine(opt,T("אופן הצגת הנקודות",10,true,TextColor));
+            AddLine(opt,mode);
+            AddLine(opt,T("כיוון הצירים ביחס לרכב",10,true,TextColor));
+            AddLine(opt,direction);
+            gain=Track(40,500,(int)Math.Round(config.Gain*100));
+            gainLabel=T("",10,true,Accent);
+            AddLine(opt,T("רגישות לתאוצה – הגדלה גורמת לתגובה חזקה יותר",10,true,TextColor));
+            AddLine(opt,gain);
+            AddLine(opt,gainLabel);
+            gainLabel.Text="רגישות נוכחית: "+config.Gain.ToString("0.00")+"×";
+            var calibrate=ActionButton("איפוס אומדן הכבידה");
+            calibrate.Click+=(sender,args)=>{
+                sensors.Calibrate();
+                MessageBox.Show(this,"האומדן אופס. השאירו את המחשב יציב למשך שנייה.","כיול");
+            };
+            AddLine(opt,calibrate);
+            body.Controls.Add(settingsCard);
+            mode.SelectedIndexChanged+=(sender,args)=>{config.Mode=mode.SelectedIndex;config.Save();};
+            direction.SelectedIndexChanged+=(sender,args)=>{
+                config.Direction=direction.SelectedIndex;sensors.SetDirection(config.Direction);config.Save();
+            };
+            gain.Scroll+=(sender,args)=>{
+                config.Gain=gain.Value/100.0;
+                gainLabel.Text="רגישות נוכחית: "+config.Gain.ToString("0.00")+"×";
+                config.Save();
+            };
 
-            cardTech=Card(166);
-            var techTitle=Label("בדיקות חיישנים ומערכת",12,FontStyle.Bold,Fore,28);
-            techTitle.SetBounds(18,12,600,28);
-            hardware=Label("",10,FontStyle.Regular,Fore,32);hardware.SetBounds(18,47,620,33);
-            helper=Label("לבדיקה: הניעו את המחשב בעדינות ובדקו שהערכים X ו־Y משתנים. כשהמחשב מקובע ברכב, הערכים אמורים להגיב להאצה, בלימה ופניות.",9,FontStyle.Regular,Muted,65);
-            helper.SetBounds(18,85,630,65);
-            cardTech.Controls.Add(techTitle);cardTech.Controls.Add(hardware);cardTech.Controls.Add(helper);
-            body.Controls.Add(cardTech);
+            var hc=Section("אבחון חיישני Windows");
+            hardwareCard=hc.Item1;
+            var hg=hc.Item2;
+            technical=T("",10,true,TextColor);
+            explanation=T("יש להזיז את המחשב בעדינות ולבחון אם ערכי המדידה הגולמיים משתנים. שינוי במדידה הגולמית ללא שינוי בערכי X ו־Y מצביע על בעיית חישוב או כיוון.",9,false,Secondary);
+            AddLine(hg,technical);
+            AddLine(hg,explanation);
+            body.Controls.Add(hardwareCard);
 
-            // Optional fine controls in a dedicated compact section.
-            var advanced=Card(170);
-            var aTitle=Label("אפשרויות תצוגה מתקדמות",12,FontStyle.Bold,Fore,28);
-            aTitle.SetBounds(18,10,600,28);advanced.Controls.Add(aTitle);
-            size=MakeSlider(3,16,config.DotSize);
-            number=MakeSlider(7,22,config.DotCount);
-            opacity=MakeSlider(20,100,(int)(config.Opacity*100));
-            sizeValue=Label("",9,FontStyle.Bold,Accent,24);
-            numberValue=Label("",9,FontStyle.Bold,Accent,24);
-            opacityValue=Label("",9,FontStyle.Bold,Accent,24);
-            SetupAdvanced(advanced,"גודל נקודות",size,sizeValue,18,48);
-            SetupAdvanced(advanced,"כמות נקודות",number,numberValue,237,48);
-            SetupAdvanced(advanced,"אטימות",opacity,opacityValue,456,48);
-            size.Scroll+=(s,e)=>{config.DotSize=size.Value;sizeValue.Text=size.Value.ToString();config.Save();};
-            number.Scroll+=(s,e)=>{config.DotCount=number.Value;numberValue.Text=number.Value.ToString();config.Save();};
-            opacity.Scroll+=(s,e)=>{config.Opacity=opacity.Value/100.0;opacityValue.Text=opacity.Value+"%";config.Save();};
-            sizeValue.Text=size.Value.ToString();numberValue.Text=number.Value.ToString();opacityValue.Text=opacity.Value+"%";
-            var small=Label("מצב ״מוצג תמיד״ מסייע לבדיקה גם כשאין תנועה. לעבודה אוטומטית בחרו במצב ״אוטומטי״.",9,FontStyle.Regular,Muted,31);
-            small.SetBounds(18,128,650,30);advanced.Controls.Add(small);
-            body.Controls.Add(advanced);
+            var ac=Section("עיצוב הנקודות");
+            advancedCard=ac.Item1;
+            var ag=ac.Item2;
+            dots=Track(3,16,config.DotSize);
+            count=Track(7,22,config.DotCount);
+            opacity=Track(20,100,(int)(config.Opacity*100));
+            dotsLabel=T("",10,false,Secondary);countLabel=T("",10,false,Secondary);opacityLabel=T("",10,false,Secondary);
+            AddLine(ag,T("גודל העיגולים השחורים",10,true,TextColor));AddLine(ag,dots);AddLine(ag,dotsLabel);
+            AddLine(ag,T("מספר הנקודות בכל צד",10,true,TextColor));AddLine(ag,count);AddLine(ag,countLabel);
+            AddLine(ag,T("אטימות העיגולים",10,true,TextColor));AddLine(ag,opacity);AddLine(ag,opacityLabel);
+            dotsLabel.Text="גודל: "+config.DotSize;
+            countLabel.Text="נקודות: "+config.DotCount;
+            opacityLabel.Text="אטימות: "+(int)(config.Opacity*100)+"%";
+            dots.Scroll+=(sender,args)=>{config.DotSize=dots.Value;dotsLabel.Text="גודל: "+dots.Value;config.Save();};
+            count.Scroll+=(sender,args)=>{config.DotCount=count.Value;countLabel.Text="נקודות: "+count.Value;config.Save();};
+            opacity.Scroll+=(sender,args)=>{config.Opacity=opacity.Value/100.0;opacityLabel.Text="אטימות: "+opacity.Value+"%";config.Save();};
+            body.Controls.Add(advancedCard);
 
-            refresh.Tick+=(s,e)=>RefreshLive();
+            body.Resize+=(sender,args)=>ResizeCards();
+            Shown+=(sender,args)=>ResizeCards();
+            refresh.Tick+=(sender,args)=>UpdateSensorStatus();
             refresh.Start();
-            ResizeCards();RefreshLive();
-            FormClosed+=(s,e)=>{refresh.Stop();refresh.Dispose();};
+            UpdateSensorStatus();
+            FormClosed+=(sender,args)=>{refresh.Stop();refresh.Dispose();};
         }
-        static Label Label(string text,float size,FontStyle style,Color color,int height)
+
+        static Label T(string value,float size,bool heavy,Color color)
         {
             return new Label {
-                Text=text,Font=new Font("Segoe UI",size,style),ForeColor=color,Height=height,
-                AutoEllipsis=false,TextAlign=ContentAlignment.MiddleRight,
-                RightToLeft=RightToLeft.Yes,AutoSize=false,BackColor=Color.Transparent
+                Text=value,Font=new Font("Segoe UI",size,heavy?FontStyle.Bold:FontStyle.Regular),
+                ForeColor=color,RightToLeft=RightToLeft.Yes,
+                TextAlign=ContentAlignment.MiddleRight,
+                AutoSize=true,MinimumSize=new Size(0,22),Margin=new Padding(0,3,0,6),
+                UseMnemonic=false
             };
         }
-        static Panel Card(int height)
+        static Tuple<Panel,TableLayoutPanel> Section(string title)
         {
-            return new Panel {Height=height,Width=850,BackColor=PanelColor,Margin=new Padding(0,0,0,14)};
-        }
-        static ComboBox MakeCombo(string[] options,int selected)
-        {
-            var c=new ComboBox {
-                DropDownStyle=ComboBoxStyle.DropDownList,
-                Font=new Font("Segoe UI",10),
-                BackColor=Color.FromArgb(42,52,65),ForeColor=Color.White,
-                FlatStyle=FlatStyle.Flat,RightToLeft=RightToLeft.Yes
+            var panel=new Panel {
+                Width=810,Height=140,BackColor=Surface,
+                Margin=new Padding(0,0,0,Spacing),Padding=new Padding(16,14,16,15)
             };
-            c.Items.AddRange(options);
-            c.SelectedIndex=Math.Max(0,Math.Min(options.Length-1,selected));
-            return c;
+            var grid=new TableLayoutPanel {
+                Dock=DockStyle.Top,AutoSize=true,AutoSizeMode=AutoSizeMode.GrowAndShrink,
+                ColumnCount=1,RowCount=0,
+                RightToLeft=RightToLeft.Yes,
+                BackColor=Surface
+            };
+            grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));
+            AddLine(grid,T(title,13,true,TextColor));
+            panel.Controls.Add(grid);
+            grid.SizeChanged+=(sender,args)=>{
+                var h=grid.PreferredSize.Height+panel.Padding.Top+panel.Padding.Bottom+2;
+                if(panel.Height!=h)panel.Height=h;
+            };
+            return Tuple.Create(panel,grid);
         }
-        static TrackBar MakeSlider(int min,int max,int val)
+        static void AddLine(TableLayoutPanel grid,Control item)
         {
-            return new TrackBar {Minimum=min,Maximum=max,Value=Math.Max(min,Math.Min(max,val)),TickStyle=TickStyle.None,BackColor=PanelColor};
+            item.Dock=DockStyle.Top;
+            if(item is TrackBar)item.Margin=new Padding(1,2,1,1);
+            else if(item is ComboBox)item.Margin=new Padding(0,0,0,12);
+            else if(item is Button)item.Margin=new Padding(0,8,0,8);
+            grid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            grid.Controls.Add(item,0,grid.RowCount);
+            grid.RowCount++;
         }
-        static Button MakeButton(string caption)
+        static ComboBox Choice(string[] values,int selected)
         {
-            var b=new Button {
-                Text=caption,FlatStyle=FlatStyle.Flat,BackColor=Accent,
-                ForeColor=Color.FromArgb(13,37,42),Font=new Font("Segoe UI",10,FontStyle.Bold),
-                Cursor=Cursors.Hand
-            }; b.FlatAppearance.BorderSize=0;return b;
+            var cb=new ComboBox {
+                Dock=DockStyle.Top,DropDownStyle=ComboBoxStyle.DropDownList,
+                FlatStyle=FlatStyle.Flat,RightToLeft=RightToLeft.Yes,
+                BackColor=Color.FromArgb(46,57,69),ForeColor=TextColor,
+                Font=new Font("Segoe UI",10f),Height=35,IntegralHeight=false
+            };
+            cb.Items.AddRange(values);
+            cb.SelectedIndex=Math.Max(0,Math.Min(selected,values.Length-1));
+            return cb;
         }
-        static void SetupAdvanced(Panel p,string title,TrackBar slider,Label value,int x,int y)
+        static TrackBar Track(int min,int max,int value)
         {
-            var label=Label(title,10,FontStyle.Regular,Muted,26);label.SetBounds(x,y,190,25);
-            slider.SetBounds(x,y+29,155,38);
-            value.SetBounds(x+155,y+34,45,25);
-            p.Controls.Add(label);p.Controls.Add(slider);p.Controls.Add(value);
+            return new TrackBar {
+                Minimum=min,Maximum=max,Value=Math.Max(min,Math.Min(max,value)),
+                TickStyle=TickStyle.None,Height=40,BackColor=Surface
+            };
+        }
+        static Button ActionButton(string value)
+        {
+            var btn=new Button {
+                Text=value,Height=43,AutoSize=false,Dock=DockStyle.Top,
+                BackColor=Accent,ForeColor=Color.FromArgb(20,34,41),
+                Font=new Font("Segoe UI",10,FontStyle.Bold),
+                FlatStyle=FlatStyle.Flat,Cursor=Cursors.Hand,
+                RightToLeft=RightToLeft.Yes
+            };
+            btn.FlatAppearance.BorderSize=0;
+            return btn;
         }
         void ResizeCards()
         {
-            if(body==null)return;
-            int w=Math.Max(660,body.ClientSize.Width-body.Padding.Left-body.Padding.Right-24);
-            foreach(Control c in body.Controls) {
-                c.Width=w;
-                if(c==cardStatus) {
-                    foreach(Control item in cardStatus.Controls)item.Width=w-36;
-                } else if(c==cardPreview) {
-                    foreach(Control item in cardPreview.Controls)item.Width=w-36;
-                } else if(c==cardTech) {
-                    foreach(Control item in cardTech.Controls)item.Width=w-36;
+            if(body==null || body.IsDisposed)return;
+            int width=Math.Max(360,body.ClientSize.Width-body.Padding.Horizontal-24);
+            body.SuspendLayout();
+            foreach(Control item in body.Controls)
+            {
+                item.Width=width;
+                foreach(Control c in item.Controls)
+                {
+                    if(c is TableLayoutPanel)
+                    {
+                        c.Width=width-item.Padding.Horizontal;
+                        foreach(Control sub in c.Controls)
+                        {
+                            var label=sub as Label;
+                            if(label!=null)
+                                label.MaximumSize=new Size(Math.Max(240,c.Width-8),0);
+                        }
+                    }
                 }
             }
+            body.ResumeLayout(true);
         }
-        void RefreshLive()
+        void UpdateSensorStatus()
         {
             if(IsDisposed)return;
             var d=sensors.Snapshot();
             if(!d.Found) {
-                statTitle.Text="לא נמצא מד תאוצה זמין";
-                statTitle.ForeColor=Color.FromArgb(247,178,127);
-                statDetail.Text="התוכנה אינה מקבלת כרגע מידע מחיישן התנועה של Windows.";
-            } else if(!d.Fresh) {
-                statTitle.Text="זוהה חיישן — ממתין לנתונים חיים";
-                statTitle.ForeColor=Color.FromArgb(247,178,127);
-                statDetail.Text=d.Samples==0?"זוהה התקן, אך עדיין לא התקבלה אפילו קריאה אחת.":"הקריאות הפסיקו להתעדכן. קריאה אחרונה לפני "+d.Age.ToString("0.0")+" שניות.";
-            } else {
-                statTitle.Text="החיישן פועל ומספק נתונים";
-                statTitle.ForeColor=Accent;
-                statDetail.Text="קצב: "+d.Rate.ToString("0")+" קריאות לשנייה • מספר קריאות: "+d.Samples+" • מצב: "+(d.Moving?"תנועה מזוהה":"תנועה חלשה / יציב");
+                state.Text="Windows אינו מזהה מד תאוצה";
+                state.ForeColor=Warning;
+                status.Text="אין מקור תנועה מקומי זמין. בדקו את מנהל ההתקנים ואת מנהלי החיישנים של המחשב.";
             }
-            vector.Text="X: "+d.X.ToString("+0.00;-0.00;0.00")+"  |  Y: "+d.Y.ToString("+0.00;-0.00;0.00")+"  |  עוצמה: "+d.Strength.ToString("0.00")+" m/s²";
-            hardware.Text="מד תאוצה: "+(d.Found?"זוהה":"לא זמין")+"    •    גירוסקופ: "+(d.Gyro?"זוהה":"לא זמין")+"    •    תקינות: "+(d.Fresh?"נתונים חיים":"ללא נתונים עדכניים");
-            if(!string.IsNullOrEmpty(d.Error))helper.Text="מידע ממערכת החיישנים: "+d.Error;
+            else if(!d.Fresh) {
+                state.Text="מד התאוצה זוהה, אך אין נתונים חדשים";
+                state.ForeColor=Warning;
+                status.Text=d.Samples==0?"התקן החיישן מחובר אך טרם התקבלו מדידות.":
+                    "קריאה אחרונה לפני "+d.Age.ToString("0.0")+" שניות.";
+            }
+            else {
+                state.Text="חיישני התנועה פועלים";
+                state.ForeColor=Accent;
+                status.Text="קצב: "+d.Rate.ToString("0")+" קריאות בשנייה • מספר מדידות: "+d.Samples+
+                    " • "+(d.Moving?"תנועה מזוהה":"תנועה חלשה או יציב");
+            }
+            vector.Text="תנועה מחושבת: X "+d.X.ToString("+0.00;-0.00;0.00")+
+                " | Y "+d.Y.ToString("+0.00;-0.00;0.00")+
+                " | עוצמה "+d.Strength.ToString("0.00")+" m/s²";
+            raw.Text="חיישן גולמי: X "+d.RawX.ToString("0.00")+
+                " | Y "+d.RawY.ToString("0.00")+" | Z "+d.RawZ.ToString("0.00")+" m/s²";
+            technical.Text="מד תאוצה: "+(d.Found?"מחובר":"לא זמין")+
+                " • גירוסקופ: "+(d.Gyro?"מחובר":"לא זמין")+
+                " • עדכון: "+(d.Fresh?"תקין":"לא עדכני");
+            if(!String.IsNullOrWhiteSpace(d.Error))
+                explanation.Text="שגיאת חיישן: "+d.Error;
             preview.Invalidate();
         }
     }
+
     internal sealed class Preview : Control
     {
-        readonly SensorService sensors;readonly AppConfig config;
+        readonly SensorService sensors;
+        readonly AppConfig config;
         public Preview(SensorService s,AppConfig c)
         {
-            sensors=s;config=c;BackColor=Color.FromArgb(22,29,38);
-            SetStyle(ControlStyles.OptimizedDoubleBuffer|ControlStyles.UserPaint|ControlStyles.AllPaintingInWmPaint,true);
+            sensors=s;config=c;
+            SetStyle(ControlStyles.OptimizedDoubleBuffer|ControlStyles.UserPaint|
+                ControlStyles.AllPaintingInWmPaint,true);
         }
         protected override void OnPaint(PaintEventArgs e)
         {
             base.OnPaint(e);
             var g=e.Graphics;g.SmoothingMode=SmoothingMode.AntiAlias;
-            var data=sensors.Snapshot();
-            float cx=Width/2f,cy=Height/2f;
-            float dx=(float)(Math.Tanh(data.X*config.Gain/4)*30);
-            float dy=(float)(Math.Tanh(data.Y*config.Gain/4)*30);
-            using(var center=new Pen(Color.FromArgb(75,165,181,192),1))
-            using(var dot=new SolidBrush(Color.FromArgb(117,207,190)))
+            var d=sensors.Snapshot();
+            float midX=Width/2f,midY=Height/2f;
+            float dx=(float)(Math.Tanh(d.X*config.Gain/4)*35);
+            float dy=(float)(Math.Tanh(d.Y*config.Gain/4)*35);
+            using(var line=new Pen(Color.FromArgb(90,173,192,201)))
+            using(var dot=new SolidBrush(Color.FromArgb(8,8,10)))
             {
-                g.DrawLine(center,cx,15,cx,Height-15);
-                g.DrawLine(center,16,cy,Width-16,cy);
-                for(int n=0;n<8;n++) {
-                    float x=28+n*(Width-56)/7f;
-                    g.FillEllipse(dot,x+dx-3,cy+dy-3,6,6);
+                g.DrawLine(line,midX,12,midX,Height-12);
+                g.DrawLine(line,15,midY,Width-15,midY);
+                for(int i=0;i<8;i++) {
+                    float x=28+i*Math.Max(1,Width-56)/7f;
+                    g.FillEllipse(dot,x+dx-5,midY+dy-5,10,10);
                 }
             }
         }
