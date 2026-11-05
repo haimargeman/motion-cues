@@ -47,7 +47,7 @@ namespace SteadyCues.UI
         protected static void DrawText(Graphics g, string s, Font f, Color c, RectangleF r, StringAlignment h = StringAlignment.Center)
         {
             using (var b = new SolidBrush(c))
-            using (var sf = new StringFormat { Alignment = h, LineAlignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter, FormatFlags = StringFormatFlags.NoWrap })
+            using (var sf = new StringFormat { Alignment = h, LineAlignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter, FormatFlags = StringFormatFlags.NoWrap | StringFormatFlags.DirectionRightToLeft })
                 g.DrawString(s, f, b, r, sf);
         }
     }
@@ -168,6 +168,13 @@ namespace SteadyCues.UI
                     }
                 }
                 var font = sel ? Theme.Font(Font.Size, FontStyle.Bold) : Font;
+                // Shrink long Hebrew labels rather than allowing them to collide.
+                var usable = Math.Max(12f, r.Width - D(12));
+                if (g.MeasureString(_items[i], font).Width > usable)
+                {
+                    float availableSize = Math.Max(7f, Font.Size * usable / Math.Max(1f, g.MeasureString(_items[i], font).Width));
+                    font = Theme.Font(availableSize, sel ? FontStyle.Bold : FontStyle.Regular);
+                }
                 DrawText(g, _items[i], font, sel ? Theme.Text : Theme.Muted, r);
             }
             FocusRing(g, outer, radius);
@@ -313,11 +320,11 @@ namespace SteadyCues.UI
             FocusRing(g, track, sh / 2);
 
             var textW = Width - sw - D(16);
-            TextRenderer.DrawText(g, Text, Theme.Font(10f, FontStyle.Bold), new Rectangle(0, 0, (int)textW, (int)D(22)), Theme.Text,
-                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+            TextRenderer.DrawText(g, Text, Theme.Font(10f, FontStyle.Bold), new Rectangle(0, 0, (int)textW, (int)D(24)), Theme.Text,
+                TextFormatFlags.Right | TextFormatFlags.RightToLeft | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
             if (!string.IsNullOrEmpty(Description))
                 TextRenderer.DrawText(g, Description, Theme.Font(9f), new Rectangle(0, (int)D(24), (int)textW, Height - (int)D(24)), Theme.Muted,
-                    TextFormatFlags.Left | TextFormatFlags.WordBreak);
+                    TextFormatFlags.Right | TextFormatFlags.RightToLeft | TextFormatFlags.WordBreak);
         }
     }
 
