@@ -32,6 +32,19 @@ jobs:
       - name: Compile and execute motion engine tests; build app
         shell: pwsh
         run: ./v2/build.ps1
+      - name: Smoke test desktop startup
+        shell: pwsh
+        run: |
+          $p=$null
+          try {
+            $p=Start-Process (Resolve-Path 'dist-v2/SteadyCues2.exe') -PassThru
+            Start-Sleep -Seconds 4
+            $p.Refresh()
+            if ($p.HasExited) { throw "SteadyCues2 exited unexpectedly (exit code $($p.ExitCode))." }
+            Write-Host 'Desktop process remained alive; startup smoke test passed.'
+          } finally {
+            if ($p -and -not $p.HasExited) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
+          }
       - name: Upload rebuilt app
         uses: actions/upload-artifact@v4
         with:
