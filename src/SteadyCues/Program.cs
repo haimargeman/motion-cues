@@ -45,13 +45,13 @@ namespace SteadyCues
             {
                 if (!quiet)
                 {
-                    var answer = MessageBox.Show("Remove SteadyCues and its settings from this PC?", "Uninstall SteadyCues",
+                    var answer = MessageBox.Show("להסיר את SteadyCues ואת ההגדרות מהמחשב?", "Uninstall SteadyCues",
                         MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
                     if (answer != DialogResult.OK) return 1;
                 }
                 StopRunningInstance();
                 Installer.Uninstall();
-                if (!quiet) MessageBox.Show("SteadyCues has been removed.", "SteadyCues", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                if (!quiet) MessageBox.Show("SteadyCues הוסרה מהמחשב.", "SteadyCues", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return 0;
             }
 
@@ -134,8 +134,8 @@ namespace SteadyCues
                 File.AppendAllText(log, DateTime.Now.ToString("u") + "  v" + Version + Environment.NewLine + ex + Environment.NewLine + Environment.NewLine);
             }
             catch { }
-            MessageBox.Show("SteadyCues ran into a problem and needs to close.\n\n" + (ex != null ? ex.Message : "Unknown error") +
-                            "\n\nDetails were saved to " + log + ". Please include them if you report the issue.",
+            MessageBox.Show("אירעה תקלה בתוכנה ויש לסגור אותה.\n\n" + (ex != null ? ex.Message : "שגיאה לא ידועה") +
+                            "\n\nפרטי השגיאה נשמרו ב־" + log + ". צרפו את הפרטים לדיווח על התקלה.",
                 "SteadyCues", MessageBoxButtons.OK, MessageBoxIcon.Error);
             Environment.Exit(1);
         }
