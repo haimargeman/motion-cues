@@ -614,6 +614,9 @@ namespace SteadyCues.UI
             bool builtIn = _hub.IsPresent(ActiveSource.BuiltIn);
             bool phone = _bridge.PhoneConnected;
             bool demo = _hub.DemoRunning;
+            double sensorAge = _hub.GetAge(ActiveSource.BuiltIn);
+            bool receiving = builtIn && snap.Fresh && _hub.GetSampleCount(ActiveSource.BuiltIn) > 0;
+            double sampleRate = _hub.GetRate(ActiveSource.BuiltIn);
 
             // Header + status card
             string state;
@@ -628,9 +631,6 @@ namespace SteadyCues.UI
 
             string source = MotionHub.Describe(snap.Source);
             if (snap.Source == ActiveSource.BuiltIn) source = "מד תאוצה וגירוסקופ מובנים";
-            double sensorAge = _hub.GetAge(ActiveSource.BuiltIn);
-            bool receiving = builtIn && snap.Fresh && _hub.GetSampleCount(ActiveSource.BuiltIn) > 0;
-            double sampleRate = _hub.GetRate(ActiveSource.BuiltIn);
             _statusDetail.Text = !builtIn
                 ? "Windows לא זיהה מד תאוצה מובנה. בדקו את מנהל ההתקנים."
                 : !receiving
