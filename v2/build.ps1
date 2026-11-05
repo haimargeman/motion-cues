@@ -27,6 +27,16 @@ if($LASTEXITCODE -ne 0){throw "Engine tests compilation failed."}
 & $testexe
 if($LASTEXITCODE -ne 0){throw "Engine tests failed."}
 if($TestOnly){return}
+# Compile the complete application plus a dedicated WinForms layout test entrypoint.
+$layoutExe=Join-Path $out 'LayoutTests.exe'
+$layoutSource=Join-Path $source 'tests\LayoutTests.cs'
+$icon=Join-Path $root 'src\SteadyCues\Assets\SteadyCues.ico'
+$manifest=Join-Path $root 'src\SteadyCues\app.manifest'
+& $csc @common @refs '-target:exe' '-main:SteadyCuesV2.Tests.LayoutRunner' "-out:$layoutExe" @files $layoutSource
+if($LASTEXITCODE -ne 0){throw "RTL layout tests compilation failed."}
+& $layoutExe
+if($LASTEXITCODE -ne 0){throw "RTL layout tests failed."}
+
 $exe=Join-Path $out 'SteadyCues2.exe'
 $icon=Join-Path $root 'src\SteadyCues\Assets\SteadyCues.ico'
 $manifest=Join-Path $root 'src\SteadyCues\app.manifest'
