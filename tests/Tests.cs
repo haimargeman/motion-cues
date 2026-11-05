@@ -137,15 +137,20 @@ namespace SteadyCues.Tests
             }
         }
 
-        public static void HubPrefersFreshPhoneOverNothing()
+        public static void HubRejectsExternalMotionAndAcceptsLocalSensors()
         {
             var s = new Settings();
             var hub = new MotionHub(s);
             Assert.True(hub.Resolve() == ActiveSource.None, "no source initially");
             hub.Push(ActiveSource.Phone, 1, 2, 0.016, false);
+            Assert.True(hub.Resolve() == ActiveSource.None, "phone must never become active");
+            hub.Push(ActiveSource.Location, 1, 2, 0.016, false);
+            Assert.True(hub.Resolve() == ActiveSource.None, "GPS must never become active");
+            hub.SetPresent(ActiveSource.BuiltIn, true, "local sensor available");
+            hub.Push(ActiveSource.BuiltIn, 3, 4, 0.016, false);
             var snap = hub.Snapshot();
-            Assert.True(snap.Source == ActiveSource.Phone && snap.Fresh, "phone becomes active");
-            Assert.Near(snap.Fy, 2, 1e-9, "snapshot carries the force");
+            Assert.True(snap.Source == ActiveSource.BuiltIn && snap.Fresh, "only built-in sensor becomes active");
+            Assert.Near(snap.Fy, 4, 1e-9, "snapshot carries local force");
         }
     }
 
