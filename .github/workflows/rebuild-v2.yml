@@ -2,7 +2,7 @@ name: SteadyCues V2 - Rebuilt Windows App
 
 on:
   push:
-    branches: [feature/steadycues-rebuild-v2]
+    branches: [feature/steadycues-rebuild-v2, main]
     paths:
       - 'v2/**'
       - '.github/workflows/rebuild-v2.yml'
@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   rebuild:
@@ -41,3 +41,23 @@ jobs:
             dist-v2/SteadyCues2.exe.sha256
           if-no-files-found: error
           retention-days: 30
+      - name: Publish beta release from main after successful tests
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag="v2.0.0-preview.$env:GITHUB_RUN_NUMBER"
+          $notes=@'
+          ## SteadyCues 2 — בנייה מחדש, מהדורת ניסיון
+
+          תוכנת Windows חדשה עם מנוע עיבוד תנועה, שכבת נקודות וממשק עברי שנבנו מחדש.
+
+          - מד תאוצה מקומי וגירוסקופ אופציונלי בלבד
+          - קריאות חיישן חיות וזיהוי בעיות אמינות
+          - תזוזת נקודות חזקה יותר עם שליטה ברגישות ובכיוון
+          - ללא טלפון, GPS, שרת, התקנה אוטומטית או שינוי חומת אש
+
+          **מהדורת Preview:** הבנייה נבדקה ב-Windows והמנוע עבר בדיקות אוטומטיות, אך תפקוד החיישנים והתצוגה דורש בדיקה על מחשב היעד. יש לסגור את התוכנה הישנה לפני ההפעלה.
+          '@
+          gh release create $tag dist-v2/SteadyCues2.exe dist-v2/SteadyCues2.exe.sha256 --target $env:GITHUB_SHA --prerelease --title "SteadyCues 2 Preview $tag" --notes $notes
