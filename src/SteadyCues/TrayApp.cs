@@ -85,17 +85,12 @@ namespace SteadyCues
 
         private void ApplySources()
         {
-            bool hasSensor = Hub.IsPresent(ActiveSource.BuiltIn);
-            bool wantPhone = Settings.Source == SourceKind.Phone ||
-                             (Settings.Source == SourceKind.Automatic && (!hasSensor || Settings.PhoneBridge));
-            if (wantPhone && !Bridge.Running) Bridge.Start();
-            else if (!wantPhone && Bridge.Running) Bridge.Stop();
-
-            if (Settings.Source == SourceKind.Location) _location.Start();
-            else _location.Stop();
-
+            // Never listen on a network port or activate external motion sources.
+            if (Bridge.Running) Bridge.Stop();
+            _location.Stop();
+            Settings.Source = SourceKind.BuiltInSensor;
+            Settings.PhoneBridge = false;
             _builtIn.Adjust = Settings.Forward;
-            Bridge.Adjust = Settings.Forward;
         }
 
         public void ToggleDemo()
@@ -118,8 +113,8 @@ namespace SteadyCues
             }
             else Settings.Mode = _lastOnMode;
             Settings.NotifyChanged();
-            Balloon(Settings.Mode == CueMode.Off ? "Motion cues off" : "Motion cues on",
-                Settings.Mode == CueMode.Off ? "Press Ctrl + Alt + M to turn them back on." : "Press Ctrl + Alt + M to turn them off.");
+            Balloon(Settings.Mode == CueMode.Off ? "הנקודות כובו" : "הנקודות הופעלו",
+                Settings.Mode == CueMode.Off ? "להפעלה מחדש לחצו Ctrl + Alt + M." : "לכיבוי לחצו Ctrl + Alt + M.");
         }
 
         private void SetMode(CueMode m)
@@ -135,18 +130,18 @@ namespace SteadyCues
         {
             var menu = new ContextMenuStrip { ShowImageMargin = false, ShowCheckMargin = true };
             _statusItem = new ToolStripMenuItem("SteadyCues") { Enabled = false };
-            _auto = new ToolStripMenuItem("Automatic", null, delegate { SetMode(CueMode.Automatic); });
-            _always = new ToolStripMenuItem("Always on", null, delegate { SetMode(CueMode.AlwaysOn); });
-            _off = new ToolStripMenuItem("Off", null, delegate { SetMode(CueMode.Off); }) { ShortcutKeyDisplayString = "Ctrl+Alt+M" };
-            _demoItem = new ToolStripMenuItem("Demo drive", null, delegate { ToggleDemo(); });
+            _auto = new ToolStripMenuItem("אוטומטי", null, delegate { SetMode(CueMode.Automatic); });
+            _always = new ToolStripMenuItem("מוצג תמיד", null, delegate { SetMode(CueMode.AlwaysOn); });
+            _off = new ToolStripMenuItem("כבוי", null, delegate { SetMode(CueMode.Off); }) { ShortcutKeyDisplayString = "Ctrl+Alt+M" };
+            _demoItem = new ToolStripMenuItem("הדמיית נסיעה", null, delegate { ToggleDemo(); });
             menu.Items.AddRange(new ToolStripItem[]
             {
                 _statusItem, new ToolStripSeparator(), _auto, _always, _off, new ToolStripSeparator(),
-                new ToolStripMenuItem("Connect phone…", null, delegate { ShowWindow(); }),
+                
                 _demoItem,
-                new ToolStripMenuItem("Open SteadyCues", null, delegate { ShowWindow(); }) { Font = new Font(menu.Font, FontStyle.Bold) },
+                new ToolStripMenuItem("פתח את SteadyCues", null, delegate { ShowWindow(); }) { Font = new Font(menu.Font, FontStyle.Bold) },
                 new ToolStripSeparator(),
-                new ToolStripMenuItem("Quit", null, delegate { Quit(); }),
+                new ToolStripMenuItem("יציאה", null, delegate { Quit(); }),
             });
             return menu;
         }
@@ -156,11 +151,11 @@ namespace SteadyCues
             if (_tray == null) return;
             var snap = Hub.Snapshot();
             string status;
-            if (Settings.Mode == CueMode.Off) status = "Off";
-            else if (snap.Source == ActiveSource.Demo) status = "Demo drive";
-            else if (snap.Source == ActiveSource.None) status = "No motion sensor — connect your phone";
-            else if (snap.Source == ActiveSource.Phone && !Bridge.PhoneConnected) status = "Waiting for phone";
-            else status = snap.Moving ? "Car moving · dots showing" : "Ready";
+            if (Settings.Mode == CueMode.Off) status = "כבוי";
+            else if (snap.Source == ActiveSource.Demo) status = "הדמיית נסיעה";
+            else if (snap.Source == ActiveSource.None) status = "לא זוהה מד תאוצה במחשב";
+            else if (snap.Source == ActiveSource.Phone && !Bridge.PhoneConnected) status = "ממתין לחיישן";
+            else status = snap.Moving ? "בתנועה · הנקודות מוצגות" : "מוכן";
             _statusItem.Text = "SteadyCues — " + status;
             string tip = "SteadyCues: " + status;
             _tray.Text = tip.Length > 63 ? tip.Substring(0, 63) : tip;
@@ -199,7 +194,7 @@ namespace SteadyCues
 
         public void Uninstall(IWin32Window owner)
         {
-            if (MessageBox.Show(owner, "Remove SteadyCues and its settings from this PC?", "Uninstall SteadyCues",
+            if (MessageBox.Show(owner, "להסיר את SteadyCues ואת כל הגדרותיה מהמחשב?", "Uninstall SteadyCues",
                     MessageBoxButtons.OKCancel, MessageBoxIcon.Question) != DialogResult.OK) return;
             Installer.Uninstall();
             Quit();
