@@ -63,13 +63,14 @@ namespace SteadyCues.UI
             _hub = app.Hub;
             _bridge = app.Bridge;
 
-            Text = "SteadyCues";
+            Text = "SteadyCues — חיישני מחשב בלבד";
+            RightToLeft = RightToLeft.Yes;
             Icon = TrayApp.AppIcon(32);
             BackColor = Theme.Bg;
             ForeColor = Theme.Text;
             Font = Theme.Font(10f);
             FormBorderStyle = FormBorderStyle.Sizable;
-            MaximizeBox = false;
+            MaximizeBox = true;
             StartPosition = FormStartPosition.CenterScreen;
             AutoScaleMode = AutoScaleMode.None;
             KeyPreview = true;
@@ -98,7 +99,7 @@ namespace SteadyCues.UI
         {
             base.OnVisibleChanged(e);
             _refresh.Enabled = Visible;
-            if (Visible) { _addresses = PhoneBridge.LocalAddresses(); FillNetworks(); RefreshState(); }
+            if (Visible) RefreshState();
         }
 
         protected override void OnFormClosing(FormClosingEventArgs e)
@@ -133,7 +134,7 @@ namespace SteadyCues.UI
             if (_app.WelcomeSession && !_toldAboutTray)
             {
                 _toldAboutTray = true;
-                _app.Balloon("SteadyCues is running", "It lives in the system tray, next to the clock. Click the icon to open it again.");
+                _app.Balloon("SteadyCues פועלת", "התוכנה פועלת באזור ההתראות ליד השעון. לחצו על הסמל לפתיחתה.");
             }
         }
 
@@ -144,13 +145,13 @@ namespace SteadyCues.UI
             SuspendLayout();
             _dpi = DeviceDpi / 96f;
             var work = Screen.FromPoint(Cursor.Position).WorkingArea;
-            ClientSize = new Size(D(480), Math.Min(D(760), work.Height - D(60)));
-            MinimumSize = new Size(D(420), D(480));
+            ClientSize = new Size(Math.Min(D(820), work.Width - D(36)), Math.Min(D(850), work.Height - D(40)));
+            MinimumSize = new Size(D(630), D(500));
 
             _logo = new PictureBox { Image = TrayApp.AppIcon(64).ToBitmap(), SizeMode = PictureBoxSizeMode.Zoom, BackColor = Theme.Bg };
             _title = MakeLabel("SteadyCues", 15f, FontStyle.Bold, Theme.Text);
             _subtitle = MakeLabel("", 9f, FontStyle.Regular, Theme.Muted);
-            _tabs = new Segmented("Home", "Appearance", "Settings");
+            _tabs = new Segmented("ראשי", "תצוגה", "הגדרות");
             _tabs.SelectedIndexChanged += delegate { SwitchPage(); };
             Controls.AddRange(new Control[] { _logo, _title, _subtitle, _tabs });
 
@@ -173,7 +174,7 @@ namespace SteadyCues.UI
 
         private Label MakeLabel(string text, float size, FontStyle style, Color color)
         {
-            return new Label { Text = text, Font = Theme.Font(size, style), ForeColor = color, BackColor = Color.Transparent, AutoSize = false, UseMnemonic = false };
+            return new Label { Text = text, Font = Theme.Font(size, style), ForeColor = color, BackColor = Color.Transparent, AutoSize = false, UseMnemonic = false, RightToLeft = RightToLeft.Yes, TextAlign = ContentAlignment.MiddleRight };
         }
 
         private LinkLabel MakeLink(string text)
@@ -182,7 +183,7 @@ namespace SteadyCues.UI
             {
                 Text = text, Font = Theme.Font(9.5f), AutoSize = false, BackColor = Color.Transparent,
                 LinkColor = Theme.Accent, ActiveLinkColor = Theme.Focus, VisitedLinkColor = Theme.Accent,
-                LinkBehavior = LinkBehavior.HoverUnderline, UseMnemonic = false,
+                LinkBehavior = LinkBehavior.HoverUnderline, UseMnemonic = false, RightToLeft = RightToLeft.Yes, TextAlign = ContentAlignment.MiddleRight,
             };
             return l;
         }
@@ -195,8 +196,8 @@ namespace SteadyCues.UI
             _statusDetail = MakeLabel("", 9.5f, FontStyle.Regular, Theme.Muted);
             _statusCard.Controls.AddRange(new Control[] { _homePreview, _statusTitle, _statusDetail });
 
-            _modeLabel = MakeLabel("Show dots", 10.5f, FontStyle.Bold, Theme.Text);
-            _mode = new Segmented("Automatic", "Always on", "Off");
+            _modeLabel = MakeLabel("הצגת נקודות", 10.5f, FontStyle.Bold, Theme.Text);
+            _mode = new Segmented("אוטומטי", "מוצג תמיד", "כבוי");
             _mode.SelectedIndexChanged += delegate { _s.Mode = (CueMode)_mode.SelectedIndex; _s.NotifyChanged(); UpdateModeHelp(); LayoutHome(); };
             _modeHelp = MakeLabel("", 9.5f, FontStyle.Regular, Theme.Muted);
 
@@ -221,10 +222,10 @@ namespace SteadyCues.UI
             _firewallBtn.Click += delegate { AllowFirewall(); };
             _sensorCard.Controls.AddRange(new Control[] { _sensorTitle, _sensorText, _qr, _step1, _step2, _step3, _certNote, _link, _network, _bridgeError, _sensorLink, _helpLink, _helpText, _firewallBtn });
 
-            _firstRunNote = MakeLabel("SteadyCues will start with Windows so it's ready in the car. You can change this in Settings.", 9f, FontStyle.Regular, Theme.Muted);
-            _demoBtn = new FlatButton { Text = "Try a demo drive" };
+            _firstRunNote = MakeLabel("התוכנה תופעל עם Windows. ניתן לשנות זאת בהגדרות.", 9f, FontStyle.Regular, Theme.Muted);
+            _demoBtn = new FlatButton { Text = "בדיקת תצוגה" };
             _demoBtn.Click += delegate { _app.ToggleDemo(); RefreshState(); };
-            _doneBtn = new FlatButton { Text = "Done", Primary = true };
+            _doneBtn = new FlatButton { Text = "סיום", Primary = true };
             _doneBtn.Click += delegate { HideToTray(); };
 
             p.Controls.AddRange(new Control[] { _statusCard, _modeLabel, _mode, _modeHelp, _sensorCard, _firstRunNote, _demoBtn, _doneBtn });
@@ -233,7 +234,7 @@ namespace SteadyCues.UI
         private void BuildAppearance(Panel p)
         {
             _lookPreview = new CuePreview(_s, _hub);
-            _lookDemoBtn = new FlatButton { Text = "Preview with a demo drive" };
+            _lookDemoBtn = new FlatButton { Text = "תצוגה מקדימה" };
             _lookDemoBtn.Click += delegate { _app.ToggleDemo(); RefreshState(); };
 
             _intensity = MakeSlider(0.25, 2.0, 0.05, v => { _s.Intensity = v; });
@@ -246,14 +247,14 @@ namespace SteadyCues.UI
             _opacityVal = MakeLabel("", 9.5f, FontStyle.Regular, Theme.Muted);
             foreach (var l in new[] { _intensityVal, _sizeVal, _rowsVal, _opacityVal }) l.TextAlign = ContentAlignment.MiddleRight;
 
-            _style = new Segmented("Adaptive", "Dark", "Light", "Accent");
+            _style = new Segmented("מותאם", "כהה", "בהיר", "צבע הדגשה");
             _style.SelectedIndexChanged += delegate { _s.Style = (DotStyle)_style.SelectedIndex; _s.NotifyChanged(); };
-            _styleHelp = MakeLabel("Adaptive dots have a light outline, so they stay visible on both dark and light content.", 9f, FontStyle.Regular, Theme.Muted);
-            _edges = new Segmented("Left and right", "All four edges");
+            _styleHelp = MakeLabel("נקודות מותאמות כוללות קו מתאר בהיר כדי להיראות גם על רקע כהה וגם על רקע בהיר.", 9f, FontStyle.Regular, Theme.Muted);
+            _edges = new Segmented("צד ימין ושמאל", "כל ארבעת הצדדים");
             _edges.SelectedIndexChanged += delegate { _s.Edges = (EdgeLayout)_edges.SelectedIndex; _s.NotifyChanged(); };
-            _displays = new Segmented("Main display", "All displays");
+            _displays = new Segmented("מסך ראשי", "כל המסכים");
             _displays.SelectedIndexChanged += delegate { _s.Displays = (DisplayTarget)_displays.SelectedIndex; _s.NotifyChanged(); };
-            _reset = MakeLink("Reset to defaults");
+            _reset = MakeLink("איפוס לברירת המחדל");
             _reset.LinkClicked += delegate
             {
                 var d = new Settings();
@@ -266,7 +267,27 @@ namespace SteadyCues.UI
             p.Controls.AddRange(new Control[] { _lookPreview, _lookDemoBtn, _intensity, _size, _rows, _opacity, _intensityVal, _sizeVal, _rowsVal, _opacityVal,
                 _style, _styleHelp, _edges, _displays, _reset });
             foreach (var t in new[] { "Movement strength", "Dot size", "Dots per column", "Opacity", "Dot color", "Where dots appear", "Displays" })
-                p.Controls.Add(new Label { Name = "h:" + t, Text = t, Font = Theme.Font(10f, FontStyle.Bold), ForeColor = Theme.Text, BackColor = Color.Transparent });
+                p.Controls.Add(new Label { Name = "h:" + t, Text = HebrewHeading(t), RightToLeft = RightToLeft.Yes, TextAlign = ContentAlignment.MiddleRight, Font = Theme.Font(10f, FontStyle.Bold), ForeColor = Theme.Text, BackColor = Color.Transparent });
+        }
+
+        private static string HebrewHeading(string text)
+        {
+            switch (text)
+            {
+                case "Movement strength": return "עוצמת התנועה";
+                case "Dot size": return "גודל הנקודות";
+                case "Dots per column": return "נקודות בטור";
+                case "Opacity": return "אטימות";
+                case "Dot color": return "צבע הנקודות";
+                case "Where dots appear": return "מיקום הנקודות";
+                case "Displays": return "מסכים";
+                case "Motion source": return "מקור התנועה";
+                case "If the dots move the wrong way": return "תיקון כיוון התנועה";
+                case "Keyboard shortcut": return "קיצור מקשים";
+                case "Phone link": return "חיבור לטלפון";
+                case "About": return "אודות";
+                default: return text;
+            }
         }
 
         private static void AddLink(LinkLabel l, string part, string url)
@@ -283,18 +304,18 @@ namespace SteadyCues.UI
 
         private void BuildSettings(Panel p)
         {
-            _autostart = new Toggle { Text = "Start with Windows", Description = "SteadyCues starts quietly in the tray when you sign in." };
+            _autostart = new Toggle { Text = "הפעלה עם Windows", Description = "התוכנה תופעל אוטומטית באזור ההתראות בעת הכניסה למחשב." };
             _autostart.CheckedChanged += delegate { Installer.SetAutoStart(_autostart.Checked); };
-            _hideCapture = new Toggle { Text = "Hide dots from screenshots", Description = "Dots won't appear in screenshots, recordings or screen sharing." };
+            _hideCapture = new Toggle { Text = "הסתרת נקודות מצילומי מסך", Description = "הנקודות לא יופיעו בצילומי מסך, בהקלטות או בשיתוף מסך." };
             _hideCapture.CheckedChanged += delegate { _s.HideFromCapture = _hideCapture.Checked; _s.NotifyChanged(); };
 
-            _source = new Segmented("Automatic", "This PC", "Phone", "GPS");
-            _source.SelectedIndexChanged += delegate { _s.Source = (SourceKind)_source.SelectedIndex; _s.NotifyChanged(); RefreshState(); };
+            _source = new Segmented("חיישנים מקומיים בלבד");
+            _source.Enabled = false; // Source selection is locked to local sensors.
             _sourceHelp = MakeLabel("", 9f, FontStyle.Regular, Theme.Muted);
-            _forward = new Segmented("Normal", "Turn 90°", "Reverse", "Turn 270°");
+            _forward = new Segmented("רגיל", "סיבוב 90°", "הפוך", "סיבוב 270°");
             _forward.SelectedIndexChanged += delegate { _s.Forward = (ForwardAdjust)_forward.SelectedIndex; _s.NotifyChanged(); };
-            _forwardHelp = MakeLabel("SteadyCues works out which way is forward from how your PC or phone is held. If the dots move sideways when the car brakes, try Turn 90°. If they move the opposite way, try Reverse.", 9f, FontStyle.Regular, Theme.Muted);
-            _shortcut = MakeLabel("Press Ctrl + Alt + M anywhere to turn the dots on or off.", 9.5f, FontStyle.Regular, Theme.Text);
+            _forwardHelp = MakeLabel("אם הנקודות נעות לצדדים בעת בלימה, נסו סיבוב של 90°. אם הן נעות בכיוון ההפוך, בחרו הפוך.", 9f, FontStyle.Regular, Theme.Muted);
+            _shortcut = MakeLabel("לחצו Ctrl + Alt + M מכל חלון כדי להציג או להסתיר את הנקודות.", 9.5f, FontStyle.Regular, Theme.Text);
 
             _firewallBtn2 = new FlatButton { Text = "Allow in firewall" };
             _firewallBtn2.Click += delegate { AllowFirewall(); };
@@ -307,15 +328,15 @@ namespace SteadyCues.UI
                 _s.NotifyChanged();
                 UpdateLink();
             };
-            _uninstallBtn = new FlatButton { Text = "Uninstall…" };
+            _uninstallBtn = new FlatButton { Text = "הסרה…" };
             _uninstallBtn.Click += delegate { _app.Uninstall(this); };
 
             _about = MakeLabel("SteadyCues " + Program.Version + " · free and open source (MIT license)", 9f, FontStyle.Regular, Theme.Muted);
-            _links = MakeLink("Website   ·   Star on GitHub   ·   Report a problem");
+            _links = MakeLink("אתר התוכנה   ·   GitHub   ·   דיווח על תקלה");
             _links.Links.Clear();
-            AddLink(_links, "Website", Program.Website);
-            AddLink(_links, "Star on GitHub", Program.Repository);
-            AddLink(_links, "Report a problem", Program.Repository + "/issues/new/choose");
+            AddLink(_links, "אתר התוכנה", Program.Website);
+            AddLink(_links, "GitHub", Program.Repository);
+            AddLink(_links, "דיווח על תקלה", Program.Repository + "/issues/new/choose");
             _links.LinkClicked += (s, e) => Open((string)e.Link.LinkData);
 
             p.Controls.AddRange(new Control[] { _autostart, _hideCapture, _source, _sourceHelp, _forward, _forwardHelp, _shortcut,
@@ -336,7 +357,7 @@ namespace SteadyCues.UI
             _displays.SetSilently((int)_s.Displays);
             _autostart.SetSilently(Installer.AutoStartEnabled);
             _hideCapture.SetSilently(_s.HideFromCapture);
-            _source.SetSilently((int)_s.Source);
+            _source.SetSilently(0);
             _forward.SetSilently((int)_s.Forward);
             UpdateValueLabels();
             UpdateModeHelp();
@@ -360,9 +381,9 @@ namespace SteadyCues.UI
         {
             switch (_s.Mode)
             {
-                case CueMode.Automatic: _modeHelp.Text = "Dots fade in when the car moves and fade out a little while after it stops."; break;
-                case CueMode.AlwaysOn: _modeHelp.Text = "Dots stay on screen and move whenever the car speeds up, slows down or turns."; break;
-                default: _modeHelp.Text = "Dots are hidden. Press Ctrl + Alt + M to bring them back."; break;
+                case CueMode.Automatic: _modeHelp.Text = "הנקודות מופיעות בהדרגה בזמן תנועה ונעלמות לאחר העצירה."; break;
+                case CueMode.AlwaysOn: _modeHelp.Text = "הנקודות מוצגות תמיד ומגיבות להאצה, בלימה ופניות."; break;
+                default: _modeHelp.Text = "הנקודות מוסתרות. להצגתן לחצו Ctrl + Alt + M."; break;
             }
         }
 
@@ -403,7 +424,7 @@ namespace SteadyCues.UI
         private int TextHeight(Label l, int width)
         {
             if (string.IsNullOrEmpty(l.Text)) return 0;
-            return TextRenderer.MeasureText(l.Text, l.Font, new Size(width, 0), TextFormatFlags.WordBreak | TextFormatFlags.NoPadding).Height + D(2);
+            return TextRenderer.MeasureText(l.Text, l.Font, new Size(Math.Max(D(80), width - D(8)), 0), TextFormatFlags.WordBreak | TextFormatFlags.RightToLeft).Height + D(10);
         }
 
         private int PutText(Label l, int x, int y, int w)
@@ -430,7 +451,7 @@ namespace SteadyCues.UI
             y += cy + D(20);
 
             y = PutText(_modeLabel, x, y, w) + D(6);
-            _mode.SetBounds(x, y, w, D(38)); y += D(38) + D(6);
+            _mode.SetBounds(x, y, w, D(46)); y += D(46) + D(8);
             y = PutText(_modeHelp, x, y, w) + D(20);
 
             // Sensor card
@@ -442,8 +463,8 @@ namespace SteadyCues.UI
             if (_app.WelcomeSession) y = PutText(_firstRunNote, x, y, w) + D(12);
 
             int bw = (w - D(10)) / 2;
-            _demoBtn.SetBounds(x, y, bw, D(38));
-            _doneBtn.SetBounds(x + bw + D(10), y, w - bw - D(10), D(38));
+            _demoBtn.Visible = false;
+            _doneBtn.SetBounds(x, y, w, D(42));
             y += D(38) + D(20);
             FinishScroll(host, p, y);
         }
@@ -455,7 +476,7 @@ namespace SteadyCues.UI
             y = PutText(_sensorTitle, ip, y, iw) + D(4);
             y = PutText(_sensorText, ip, y, iw);
 
-            if (_view == SensorView.PhonePair)
+            if (false) // Phone pairing is intentionally unavailable in this local-only build.
             {
                 y += D(12);
                 int q = Math.Min(D(150), iw / 2 - D(8));
@@ -488,7 +509,7 @@ namespace SteadyCues.UI
                     y += D(34) + D(4);
                 }
             }
-            if (!string.IsNullOrEmpty(_sensorLink.Text))
+            if (false) // No external sensor links.
             {
                 y += D(8);
                 _sensorLink.SetBounds(ip, y, iw, D(20));
@@ -505,7 +526,7 @@ namespace SteadyCues.UI
             p.SuspendLayout();
             int x = D(20), w = ContentWidth(host), y = D(4);
             _lookPreview.SetBounds(x, y, w, D(170)); y += D(170) + D(10);
-            _lookDemoBtn.SetBounds(x, y, w, D(36)); y += D(36) + D(20);
+            _lookDemoBtn.Visible = false; y += D(10);
 
             y = SliderRow(p, "Movement strength", _intensity, _intensityVal, x, y, w);
             y = SliderRow(p, "Dot size", _size, _sizeVal, x, y, w);
@@ -525,16 +546,16 @@ namespace SteadyCues.UI
         private int SliderRow(Panel p, string title, Slider s, Label val, int x, int y, int w)
         {
             var h = p.Controls["h:" + title];
-            h.SetBounds(x, y, w - D(70), D(22));
-            val.SetBounds(x + w - D(70), y, D(70), D(22));
-            s.SetBounds(x - D(8), y + D(24), w + D(16), D(30));
-            return y + D(24) + D(30) + D(14);
+            h.SetBounds(x, y, w - D(76), D(30));
+            val.SetBounds(x + w - D(70), y, D(70), D(30));
+            s.SetBounds(x - D(8), y + D(32), w + D(16), D(30));
+            return y + D(32) + D(30) + D(18);
         }
 
         private int Header(Panel p, string title, int x, int y, int w)
         {
-            p.Controls["h:" + title].SetBounds(x, y, w, D(22));
-            return y + D(28);
+            p.Controls["h:" + title].SetBounds(x, y, w, D(30));
+            return y + D(34);
         }
 
         private void LayoutSettings()
@@ -549,21 +570,19 @@ namespace SteadyCues.UI
             _hideCapture.SetBounds(x, y, w, th); y += th + D(24);
 
             y = Header(p, "Motion source", x, y, w);
-            _source.SetBounds(x, y, w, D(38)); y += D(38) + D(6);
+            _source.SetBounds(x, y, w, D(46)); y += D(46) + D(8);
             y = PutText(_sourceHelp, x, y, w) + D(22);
 
             y = Header(p, "If the dots move the wrong way", x, y, w);
-            _forward.SetBounds(x, y, w, D(38)); y += D(38) + D(6);
+            _forward.SetBounds(x, y, w, D(46)); y += D(46) + D(8);
             y = PutText(_forwardHelp, x, y, w) + D(22);
 
             y = Header(p, "Keyboard shortcut", x, y, w);
             y = PutText(_shortcut, x, y, w) + D(22);
 
-            y = Header(p, "Phone link", x, y, w);
-            int bw = (w - D(10)) / 2;
-            _firewallBtn2.SetBounds(x, y, bw, D(36));
-            _newCodeBtn.SetBounds(x + bw + D(10), y, w - bw - D(10), D(36));
-            y += D(36) + D(24);
+            _firewallBtn2.Visible = false;
+            _newCodeBtn.Visible = false;
+            y += D(8);
 
             y = Header(p, "About", x, y, w);
             y = PutText(_about, x, y, w) + D(4);
@@ -598,47 +617,41 @@ namespace SteadyCues.UI
 
             // Header + status card
             string state;
-            if (_s.Mode == CueMode.Off) state = "Dots are off";
-            else if (demo) state = "Demo drive running";
-            else if (snap.Source == ActiveSource.None) state = "Waiting for a motion sensor";
-            else if (_s.Mode == CueMode.AlwaysOn || snap.Moving) state = snap.Moving ? "Car is moving · dots are showing" : "Dots are showing";
-            else state = "Ready · dots appear when the car moves";
+            if (_s.Mode == CueMode.Off) state = "הנקודות כבויות";
+            else if (demo) state = "הדמיית נסיעה פועלת";
+            else if (snap.Source == ActiveSource.None) state = "ממתין לחיישני תנועה";
+            else if (_s.Mode == CueMode.AlwaysOn || snap.Moving) state = snap.Moving ? "בתנועה · הנקודות מוצגות" : "הנקודות מוצגות";
+            else state = "מוכן · הנקודות יוצגו בזמן תנועה";
             _statusTitle.Text = state;
-            _subtitle.Text = _s.Mode == CueMode.Off ? "Paused" : "Running in the tray";
+            _subtitle.Text = _s.Mode == CueMode.Off ? "מושהה" : "פועל באזור ההתראות";
 
             string source = MotionHub.Describe(snap.Source);
-            if (snap.Source == ActiveSource.Phone) source = phone ? _hub.GetStatus(ActiveSource.Phone) : "Phone · not connected";
-            else if (snap.Source == ActiveSource.BuiltIn) source = "This PC's motion sensor";
-            else if (snap.Source == ActiveSource.Location) source = "Location (GPS) · " + _hub.GetStatus(ActiveSource.Location);
-            _statusDetail.Text = snap.Source == ActiveSource.None ? "Connect your phone below to get started." : "Motion source: " + source;
+            if (snap.Source == ActiveSource.BuiltIn) source = "מד תאוצה וגירוסקופ מובנים";
+            _statusDetail.Text = snap.Source == ActiveSource.None ? "לא זוהה מד תאוצה פעיל במחשב. בדקו את מנהל ההתקנים." :  "מקור תנועה: " + source;
 
             // Which sensor card to show
             SensorView view;
-            if (_s.Source == SourceKind.Location) view = SensorView.Location;
-            else if (_s.Source == SourceKind.BuiltInSensor) view = builtIn ? SensorView.BuiltIn : SensorView.BuiltInMissing;
-            else if (_s.Source == SourceKind.Automatic && builtIn && !_s.PhoneBridge && !phone) view = SensorView.BuiltIn;
-            else if (phone && !_showPairing) view = SensorView.PhoneConnected;
-            else view = SensorView.PhonePair;
+            view = builtIn ? SensorView.BuiltIn : SensorView.BuiltInMissing;
 
             switch (view)
             {
                 case SensorView.BuiltIn:
-                    _sensorTitle.Text = "✓  This PC has a motion sensor";
+                    _sensorTitle.Text = "✓  זוהה מד תאוצה מובנה";
                     _sensorTitle.ForeColor = Theme.Text;
-                    _sensorText.Text = "You're all set. SteadyCues uses it automatically, so there's nothing to connect.";
-                    _sensorLink.Text = "Use my phone as the sensor instead";
+                    _sensorText.Text = "התוכנה משתמשת בחיישן המובנה במחשב, ללא חיבור לטלפון או לרשת.";
+                    _sensorLink.Text = "";
                     break;
                 case SensorView.BuiltInMissing:
-                    _sensorTitle.Text = "No motion sensor found on this PC";
+                    _sensorTitle.Text = "לא זוהה מד תאוצה במחשב";
                     _sensorTitle.ForeColor = Theme.Warn;
-                    _sensorText.Text = "Most laptops don't have one. Switch the motion source to Automatic or Phone to use your phone instead.";
-                    _sensorLink.Text = "Use my phone";
+                    _sensorText.Text = "Windows אינו חושף כרגע מד תאוצה זמין. יש לבדוק את מנהלי ההתקנים ואת תמיכת החומרה.";
+                    _sensorLink.Text = "";
                     break;
                 case SensorView.Location:
                     _sensorTitle.Text = "Using location (GPS)";
                     _sensorTitle.ForeColor = Theme.Text;
                     _sensorText.Text = _hub.GetStatus(ActiveSource.Location) + ". GPS updates about once per second, so cues are gentler than with a motion sensor.";
-                    _sensorLink.Text = "Use my phone instead";
+                    _sensorLink.Text = "";
                     break;
                 case SensorView.PhoneConnected:
                     _sensorTitle.Text = "✓  Phone connected";
@@ -660,14 +673,14 @@ namespace SteadyCues.UI
             _bridgeError.Text = _bridge.Error != null ? "Phone link couldn't start: " + _bridge.Error : "";
             if (view == SensorView.PhonePair) UpdateLink();
 
-            _demoBtn.Text = demo ? "Stop demo drive" : "Try a demo drive";
-            _lookDemoBtn.Text = demo ? "Stop demo drive" : "Preview with a demo drive";
+            _demoBtn.Text = demo ? "עצירת הדמיה" : "בדיקת תצוגה";
+            _lookDemoBtn.Text = demo ? "עצירת הדמיה" : "תצוגה מקדימה";
 
             var parts = new List<string>();
-            parts.Add("This PC: " + (builtIn ? "motion sensor ready" : "no motion sensor"));
-            parts.Add("Phone: " + (phone ? "connected" : _bridge.Running ? "waiting for phone" : "off"));
-            if (_s.Source == SourceKind.Location) parts.Add("GPS: " + _hub.GetStatus(ActiveSource.Location));
-            _sourceHelp.Text = "Automatic uses your phone when it's connected, otherwise this PC's sensor. " + string.Join(" · ", parts) + ".";
+            parts.Add( "המחשב: " + (builtIn ? "מד התאוצה זמין" : "לא נמצא מד תאוצה"));
+            
+            
+            _sourceHelp.Text = "רק חיישני המחשב פעילים. " + (builtIn ? "מד התאוצה זמין." : "לא זוהה מד תאוצה נגיש ב־Windows.");
 
             if (view != _view) { _view = view; LayoutHome(); LayoutSettings(); }
             else

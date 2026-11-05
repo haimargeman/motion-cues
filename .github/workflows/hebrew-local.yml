@@ -1,0 +1,43 @@
+name: SteadyCues Hebrew Local Windows
+
+on:
+  push:
+    branches:
+      - feature/hebrew-local-sensors
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Compile localized Windows EXE
+    runs-on: windows-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Verify local-only policy
+        shell: pwsh
+        run: |
+          $tray = Get-Content src/SteadyCues/TrayApp.cs -Raw
+          $settings = Get-Content src/SteadyCues/Settings.cs -Raw
+          if ($tray -notmatch 'if \(Bridge\.Running\) Bridge\.Stop\(\)') { throw 'Phone bridge disable policy missing.' }
+          if ($tray -notmatch '_location\.Stop\(\)') { throw 'GPS disable policy missing.' }
+          if ($settings -notmatch 's\.Source = SourceKind\.BuiltInSensor;') { throw 'Local-only settings policy missing.' }
+      - name: Build with Windows C# compiler
+        shell: pwsh
+        run: ./build.ps1
+      - name: Write SHA256
+        shell: pwsh
+        run: |
+          Get-FileHash dist/SteadyCues.exe -Algorithm SHA256 | Format-List | Out-File dist/SHA256.txt
+      - name: Upload Windows executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: SteadyCues-Hebrew-Local-Windows
+          path: |
+            dist/SteadyCues.exe
+            dist/SHA256.txt
+          if-no-files-found: error
+          retention-days: 30

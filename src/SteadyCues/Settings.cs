@@ -25,7 +25,7 @@ namespace SteadyCues
         public DotStyle Style = DotStyle.Adaptive;
         public EdgeLayout Edges = EdgeLayout.Sides;
         public DisplayTarget Displays = DisplayTarget.Primary;
-        public SourceKind Source = SourceKind.Automatic;
+        public SourceKind Source = SourceKind.BuiltInSensor;
         public ForwardAdjust Forward = ForwardAdjust.None;
         public bool HideFromCapture = true;
         public bool PhoneBridge = false;
@@ -71,10 +71,10 @@ namespace SteadyCues
                     s.Style = GetEnum(map, "style", s.Style);
                     s.Edges = GetEnum(map, "edges", s.Edges);
                     s.Displays = GetEnum(map, "displays", s.Displays);
-                    s.Source = GetEnum(map, "source", s.Source);
+                    s.Source = SourceKind.BuiltInSensor; // Local sensors only, including for old settings.
                     s.Forward = GetEnum(map, "forward", s.Forward);
                     s.HideFromCapture = GetBool(map, "hideFromCapture", s.HideFromCapture);
-                    s.PhoneBridge = GetBool(map, "phoneBridge", s.PhoneBridge);
+                    s.PhoneBridge = false; // Disable phone bridge unconditionally.
                     s.PhonePort = (int)GetDouble(map, "phonePort", s.PhonePort, 1024, 65535);
                     string tok;
                     if (map.TryGetValue("phoneToken", out tok)) s.PhoneToken = tok;
@@ -107,10 +107,10 @@ namespace SteadyCues
                 sb.AppendLine("style=" + Style);
                 sb.AppendLine("edges=" + Edges);
                 sb.AppendLine("displays=" + Displays);
-                sb.AppendLine("source=" + Source);
+                sb.AppendLine("source=" + SourceKind.BuiltInSensor);
                 sb.AppendLine("forward=" + Forward);
                 sb.AppendLine("hideFromCapture=" + HideFromCapture);
-                sb.AppendLine("phoneBridge=" + PhoneBridge);
+                sb.AppendLine("phoneBridge=False");
                 sb.AppendLine("phonePort=" + PhonePort.ToString(ci));
                 sb.AppendLine("phoneToken=" + PhoneToken);
                 sb.AppendLine("firstRun=" + FirstRun);

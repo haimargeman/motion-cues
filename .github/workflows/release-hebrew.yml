@@ -1,0 +1,68 @@
+name: Publish Hebrew Local Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/SteadyCues/**'
+      - 'tests/**'
+      - 'build.ps1'
+      - 'test.ps1'
+      - '.github/workflows/release-hebrew.yml'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Version tag, e.g. v1.1.1-he.2'
+        type: string
+        required: true
+        default: 'v1.1.1-he.1'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-hebrew
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Run tests
+        shell: pwsh
+        run: ./test.ps1
+      - name: Build executable
+        shell: pwsh
+        run: ./build.ps1
+      - name: Prepare checksum
+        shell: pwsh
+        run: |
+          $hash = (Get-FileHash 'dist/SteadyCues.exe' -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  SteadyCues.exe" | Set-Content -Encoding ascii 'dist/SteadyCues.exe.sha256'
+          Write-Host "SHA-256: $hash"
+      - name: Publish GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED_TAG: ${{ inputs.tag }}
+        run: |
+          $tag = if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch') { $env:REQUESTED_TAG } else { 'v1.1.1-he.1' }
+          if ($tag -notmatch '^v\d+\.\d+\.\d+-he\.\d+$') { throw "Invalid Hebrew release tag." }
+          gh release view $tag --repo $env:GITHUB_REPOSITORY *> $null
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Release $tag already exists; no files were overwritten."
+            exit 0
+          }
+          $notes = @'
+          ## SteadyCues — גרסה עברית, חיישנים מקומיים בלבד
+
+          - ממשק עברי עם יישור מימין לשמאל ושיפורי גודל חלון וטקסט.
+          - שימוש רק במד התאוצה ובגירוסקופ המקומיים ש-Windows מזהה.
+          - ללא חיבור לטלפון, GPS או מקורות תנועה חיצוניים.
+          - תוכנה ניידת: חלצו והפעילו את הקובץ עם --portable כדי להימנע מהתקנה אוטומטית.
+
+          **הערה:** הצלחת הבנייה והבדיקות האוטומטיות אינה מאשרת את התצוגה או זמינות החיישנים במחשב מסוים.
+          '@
+          gh release create $tag dist/SteadyCues.exe dist/SteadyCues.exe.sha256 --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "SteadyCues Hebrew Local $tag" --notes $notes
