@@ -36,6 +36,7 @@ namespace SteadyCuesV2.Tests
                 e.Process(new V3(0,3,g),new V3(2.0,0,0),1.0/60);
                 Check(e.Strength<0.01,"gyroscope detects handling and suppresses spurious motion");
                 e.Reset();
+                e.Direction=0;
                 Run(e,new V3(0,0,g),120,(V3?)null);
                 Run(e,new V3(0,1.5,g),30,(V3?)null);
                 Check(e.Y>0.8,"accelerometer alone is supported");
