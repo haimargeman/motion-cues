@@ -151,7 +151,8 @@ namespace SteadyCues
     {
         private sealed class Channel
         {
-            public double Fx, Fy, LastT = -1e9, Activity, LastMovingT = -1e9, Rate, RateWindowT;
+            public double Fx, Fy, LastT = -1e9, Activity, LastMovingT = -1e9, Rate, RateWindowT = -1;
+            public long SampleCount;
             public int RateCount;
             public bool Present;
             public string Status = "";
@@ -186,6 +187,15 @@ namespace SteadyCues
         public bool IsPresent(ActiveSource s) { lock (_sync) return _ch[(int)s].Present; }
         public double GetRate(ActiveSource s) { lock (_sync) { var c = _ch[(int)s]; return Clock.Now - c.LastT < 2 ? c.Rate : 0; } }
         public bool IsFresh(ActiveSource s, double maxAge) { lock (_sync) return Clock.Now - _ch[(int)s].LastT < maxAge; }
+        public long GetSampleCount(ActiveSource s) { lock (_sync) return _ch[(int)s].SampleCount; }
+        public double GetAge(ActiveSource s)
+        {
+            lock (_sync)
+            {
+                var t = _ch[(int)s].LastT;
+                return t < 0 ? -1 : Math.Max(0, Clock.Now - t);
+            }
+        }
 
         /// <summary>Report a felt-force sample. movingHint forces "vehicle is moving" (e.g. GPS speed).</summary>
         public void Push(ActiveSource s, double fx, double fy, double dt, bool movingHint)
@@ -196,9 +206,11 @@ namespace SteadyCues
                 var c = _ch[(int)s];
                 if (dt <= 0 || dt > 2) dt = 0.016;
                 c.Fx = fx; c.Fy = fy; c.LastT = now; c.Present = true;
+                c.SampleCount++;
                 double mag = Math.Sqrt(fx * fx + fy * fy);
                 c.Activity += (mag - c.Activity) * (1 - Math.Exp(-dt / 2.0));
                 if (movingHint || c.Activity > MovingThreshold) c.LastMovingT = now;
+                if (c.RateWindowT < 0) c.RateWindowT = now;
                 c.RateCount++;
                 if (now - c.RateWindowT >= 1.0)
                 {
@@ -233,7 +245,7 @@ namespace SteadyCues
                 double maxAge = snap.Source == ActiveSource.Location ? 4.0 : 1.0;
                 snap.Fresh = now - c.LastT < maxAge;
                 if (snap.Fresh) { snap.Fx = c.Fx; snap.Fy = c.Fy; }
-                snap.Moving = now - c.LastMovingT < MovingHold;
+                snap.Moving = snap.Fresh && now - c.LastMovingT < MovingHold;
                 return snap;
             }
         }
