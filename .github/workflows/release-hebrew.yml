@@ -48,7 +48,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REQUESTED_TAG: ${{ inputs.tag }}
         run: |
-          $tag = if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch') { $env:REQUESTED_TAG } else { 'v1.1.1-he.1' }
+          $tag = if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch') { $env:REQUESTED_TAG } else { 'v1.1.1-he.' + $env:GITHUB_RUN_NUMBER }
           if ($tag -notmatch '^v\d+\.\d+\.\d+-he\.\d+$') { throw "Invalid Hebrew release tag." }
           gh release view $tag --repo $env:GITHUB_REPOSITORY *> $null
           if ($LASTEXITCODE -eq 0) {
